@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRINCE MOVIE — Films, Séries & Animés en streaming</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0a'/><rect x='4' y='4' width='92' height='92' rx='24' fill='%23e2261c'/><path d='M40 28l34 22-34 22V28z' fill='%230a0a0a'/></svg>">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0a0a0a; --bg-2: #171717; --card: #1e1e1e;
+  --accent: #e2261c; --accent-2: #8f0f0f;
+  --text: #f2f2f2; --text-muted: #9b9b9b;
+}
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 60px; }
+header { background: linear-gradient(180deg, #000 0%, var(--bg) 100%); padding: 16px 24px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #222; }
+.logo { display: inline-flex; align-items: center; gap: 9px; font-size: 24px; font-weight: 900; letter-spacing: 1.5px; color: #fff; cursor: pointer; text-decoration: none; background: none; border: none; }
+.logo-mark { flex-shrink: 0; }
+nav { display: flex; gap: 16px; flex-wrap: wrap; }
+nav a { color: var(--text-muted); text-decoration: none; font-weight: 600; padding: 6px 12px; border-radius: 6px; transition: .2s; }
+nav a:hover, nav a.active { color: var(--accent); background: rgba(245, 180, 0, 0.1); }
+.search-box { margin-left: auto; display: flex; gap: 8px; }
+.search-box input { background: var(--bg-2); border: 1px solid #333; color: var(--text); padding: 8px 14px; border-radius: 6px; outline: none; width: 220px; }
+.search-box input:focus { border-color: var(--accent); }
+.search-box button { background: var(--accent); color: #000; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; }
+main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+h1.section-title { font-size: 24px; margin-bottom: 20px; border-left: 4px solid var(--accent); padding-left: 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 18px; }
+.card { background: var(--card); border-radius: 10px; overflow: hidden; cursor: pointer; transition: .25s; position: relative; text-decoration: none; color: inherit; }
+.card:hover { transform: translateY(-5px); box-shadow: 0 8px 24px rgba(226,38,28,.25); }
+.card img { width: 100%; height: 240px; object-fit: cover; display: block; background: #222; }
+.card .info { padding: 10px; }
+.card .info strong { display: block; font-size: 14px; margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-ep-tag { position: absolute; right: 8px; bottom: 8px; z-index: 4; font-size: 10px; padding: 2px 8px; }
+.has-chips { padding-top: 14px; }
+.chip-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 14px; margin-bottom: 8px; }
+.chip { flex: 0 0 auto; background: var(--card); border: 1px solid #2a2a2a; color: var(--text-muted); padding: 9px 18px; border-radius: 20px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.badge { display: inline-block; background: var(--accent); color: #000; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
+.badge.vostfr { background: #06c; color: #fff; }
+.badge.truefrench { background: #0a7; color: #fff; }
+.detail { display: flex; gap: 30px; flex-wrap: wrap; margin-bottom: 40px; }
+.detail img.poster { width: 260px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.6); }
+.detail .meta { flex: 1; min-width: 280px; }
+.detail h1 { font-size: 32px; margin-bottom: 12px; }
+.detail .tags { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.tag { background: var(--bg-2); padding: 4px 10px; border-radius: 20px; font-size: 12px; color: var(--text-muted); border: 1px solid #333; }
+.synopsis { line-height: 1.7; color: #ccc; margin: 16px 0; }
+.btn { display: inline-block; background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #000; padding: 12px 24px; border-radius: 8px; font-weight: 800; text-decoration: none; border: none; cursor: pointer; font-size: 15px; transition: .2s; }
+.btn:hover { transform: scale(1.05); }
+.episodes-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 20px; }
+.episode-item { background: var(--bg-2); padding: 12px 16px; border-radius: 8px; border: 1px solid #2a2a35; cursor: pointer; transition: .2s; color: var(--text); text-decoration: none; display: block; }
+.episode-item:hover { border-color: var(--accent); background: var(--card); }
+.episode-item .saison { font-size: 11px; color: var(--accent); font-weight: 700; }
+.player-wrap { width: 100%; max-width: 1100px; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9; }
+.player-wrap iframe { width: 100%; height: 100%; border: none; }
+.servers-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px auto; max-width: 1100px; justify-content: center; }
+.server-btn { background: var(--bg-2); border: 1px solid #333; color: var(--text); padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: .2s; }
+.server-btn:hover, .server-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+.error-box { text-align: center; padding: 80px 20px; max-width: 500px; margin: 0 auto; }
+.error-icon { color: var(--accent); margin-bottom: 14px; }
+.error-icon svg { width: 40px; height: 40px; }
+.error-box h2 { font-size: 26px; margin-bottom: 12px; color: var(--text); }
+.error-box p { color: var(--text-muted); margin-bottom: 24px; }
+.pagination { display: flex; justify-content: center; gap: 10px; margin: 30px 0; flex-wrap: wrap; }
+.pagination button { background: var(--bg-2); border: 1px solid #333; color: var(--text); padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+.pagination button:disabled { opacity: .3; cursor: not-allowed; }
+.pagination button.active { background: var(--accent); color: #000; font-weight: 700; }
+.retry-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 999; display: flex; align-items: center; justify-content: center; gap: 16px; padding: 10px 16px; background: var(--accent); color: #fff; font-size: 14px; text-align: center; }
+.retry-banner button { background: #fff; color: var(--accent); border: none; border-radius: 4px; padding: 4px 12px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.retry-banner-msg { display: flex; align-items: center; gap: 8px; }
+.retry-banner-msg svg { width: 18px; height: 18px; flex-shrink: 0; }
+.loader { text-align: center; padding: 60px; color: var(--accent); font-size: 18px; }
+.loader::after { content: ""; display: inline-block; width: 20px; height: 20px; border: 3px solid var(--accent); border-top-color: transparent; border-radius: 50%; margin-left: 10px; vertical-align: middle; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.account-menu { display: flex; align-items: center; gap: 14px; margin-left: auto; position: relative; }
+.account-link { color: var(--text-muted); text-decoration: none; font-weight: 600; font-size: 14px; }
+.account-link:hover { color: var(--accent); }
+.account-btn-signup { padding: 8px 16px; font-size: 14px; }
+.account-avatar { width: 38px; height: 38px; border-radius: 6px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #000; border: none; font-weight: 900; font-size: 16px; cursor: pointer; }
+.account-dropdown { position: absolute; top: 48px; right: 0; background: var(--card); border: 1px solid #2a2a35; border-radius: 10px; min-width: 200px; padding: 8px; display: none; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,.5); z-index: 200; }
+.account-dropdown.open { display: flex; }
+.account-dropdown-name { padding: 8px 10px 2px; font-weight: 700; }
+.account-dropdown-sub { padding: 0 10px 6px; font-size: 12px; color: var(--text-muted); }
+.account-dropdown-sub:last-of-type { border-bottom: 1px solid #2a2a35; padding-bottom: 10px; margin-bottom: 6px; }
+.account-dropdown a, .account-dropdown button { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text); text-decoration: none; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.account-dropdown a:hover, .account-dropdown button:hover { background: rgba(226,38,28,.12); color: var(--accent); }
+.hero { position: relative; height: 78vh; min-height: 420px; display: flex; align-items: flex-end; padding: 60px 40px; margin: -1px -24px 40px; background-size: cover; background-position: center top; }
+.hero::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,10,15,.2) 0%, rgba(10,10,15,.5) 55%, var(--bg) 97%), linear-gradient(90deg, rgba(10,10,15,.9) 0%, rgba(10,10,15,.2) 55%); }
+.hero-content { position: relative; max-width: 560px; }
+.hero-content h1 { font-size: 42px; font-weight: 900; margin-bottom: 14px; text-shadow: 0 4px 20px rgba(0,0,0,.6); }
+.hero-badges { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.hero-content p { color: #eee; line-height: 1.6; margin-bottom: 22px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+.hero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+.btn-outline { display: inline-block; background: rgba(120,120,130,.4); color: #fff; padding: 12px 24px; border-radius: 8px; font-weight: 800; text-decoration: none; border: none; cursor: pointer; font-size: 15px; backdrop-filter: blur(4px); }
+.btn-outline:hover { background: rgba(120,120,130,.6); }
+.rows-wrap { padding: 0 16px; }
+.row-block { margin-bottom: 38px; }
+.row-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 8px; margin-bottom: 14px; }
+.row-head h2 { font-size: 20px; border-left: 4px solid var(--accent); padding-left: 12px; }
+.row-head a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 600; cursor: pointer; }
+.row-head a:hover { color: var(--accent); }
+.row-scroll { display: flex; gap: 14px; overflow-x: auto; padding: 4px 8px 14px; scroll-behavior: smooth; }
+.row-scroll::-webkit-scrollbar { height: 8px; }
+.row-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 8px; }
+.row-scroll::-webkit-scrollbar-track { background: transparent; }
+.row-card { flex: 0 0 auto; width: 160px; background: var(--card); border-radius: 10px; overflow: hidden; text-decoration: none; color: inherit; transition: .25s; position: relative; }
+.mylist-heart { position: absolute; top: 8px; right: 8px; z-index: 5; width: 30px; height: 30px; border-radius: 50%; border: none; background: rgba(10,10,10,.7); color: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+.mylist-heart.active { color: var(--accent); }
+.mylist-heart:hover { background: rgba(10,10,10,.9); }
+.row-card:hover { transform: translateY(-5px) scale(1.03); box-shadow: 0 8px 24px rgba(226,38,28,.25); }
+.row-card img { width: 100%; height: 230px; object-fit: cover; display: block; background: #222; }
+.row-card-badge { position: absolute; left: 8px; bottom: 8px; z-index: 4; }
+.auth-wrap { max-width: 440px; margin: 60px auto; background: var(--card); border-radius: 14px; padding: 40px 32px; border: 1px solid #2a2a35; }
+.auth-wrap h1 { font-size: 26px; margin-bottom: 6px; }
+.auth-wrap .sub { color: var(--text-muted); font-size: 14px; margin-bottom: 26px; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600; }
+.field input, .field select { width: 100%; background: var(--bg-2); border: 1px solid #333; color: var(--text); padding: 12px 14px; border-radius: 8px; outline: none; font-size: 14px; }
+.field input:focus, .field select:focus { border-color: var(--accent); }
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; }
+.field-error { color: #ff5c5c; font-size: 12px; margin-top: 6px; display: none; }
+.field.invalid input { border-color: #ff5c5c; }
+.field.invalid .field-error { display: block; }
+.auth-submit { width: 100%; margin-top: 8px; }
+.auth-switch { text-align: center; margin-top: 20px; font-size: 14px; color: var(--text-muted); }
+.auth-switch a { color: var(--accent); text-decoration: none; font-weight: 700; cursor: pointer; }
+.notice-banner { background: rgba(226,38,28,.12); border: 1px solid rgba(226,38,28,.3); color: var(--accent); padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 22px; line-height: 1.5; display: flex; gap: 10px; align-items: flex-start; }
+.settings-section { background: var(--card); border: 1px solid #2a2a35; border-radius: 12px; padding: 26px 28px; margin-bottom: 24px; max-width: 640px; }
+.settings-section h2 { font-size: 18px; margin-bottom: 18px; border-left: 4px solid var(--accent); padding-left: 12px; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #2a2a35; }
+.toggle-row:last-child { border-bottom: none; }
+.toggle-row .label { font-size: 14px; }
+.toggle-row .label small { display: block; color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+.switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch .slider { position: absolute; inset: 0; background: #333; border-radius: 24px; cursor: pointer; transition: .2s; }
+.switch .slider::before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+.switch input:checked + .slider { background: var(--accent); }
+.switch input:checked + .slider::before { transform: translateX(20px); }
+.save-confirm { color: #0a7; font-size: 13px; margin-top: 10px; display: none; font-weight: 700; }
+.welcome-body { padding-bottom: 0; }
+.welcome-bg { position: fixed; inset: 0; z-index: -2; display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; overflow: hidden; }
+.welcome-bg img { width: 100%; height: 100%; object-fit: cover; opacity: .55; filter: saturate(1.1); }
+.welcome-overlay { position: fixed; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(10,10,10,.75) 0%, rgba(10,10,10,.9) 55%, var(--bg) 100%), linear-gradient(90deg, rgba(10,10,10,.6) 0%, rgba(10,10,10,.2) 50%, rgba(10,10,10,.6) 100%); }
+.welcome-header { display: flex; align-items: center; justify-content: space-between; padding: 22px 40px; }
+.logo-lg { font-size: 22px; }
+.welcome-login-btn { padding: 9px 22px; font-size: 14px; }
+.welcome-credit { position: relative; z-index: 2; text-align: center; color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: 2px; margin-top: -6px; margin-bottom: 6px; }
+.welcome-hero { text-align: center; max-width: 720px; margin: 0 auto; padding: 40px 24px 70px; }
+.welcome-logo-big { margin-bottom: 26px; filter: drop-shadow(0 10px 40px rgba(226,38,28,.35)); }
+.welcome-hero h1 { font-size: 48px; font-weight: 900; line-height: 1.15; margin-bottom: 20px; letter-spacing: -1px; text-shadow: 0 6px 30px rgba(0,0,0,.5); }
+.welcome-sub { font-size: 19px; color: #d8d8d8; line-height: 1.65; margin-bottom: 36px; max-width: 560px; margin-left: auto; margin-right: auto; }
+.welcome-form { display: flex; gap: 10px; max-width: 560px; margin: 0 auto 14px; flex-wrap: wrap; justify-content: center; }
+.welcome-form input { flex: 1; min-width: 220px; background: rgba(23,23,23,.85); border: 1px solid #3a3a3a; color: var(--text); padding: 15px 18px; border-radius: 8px; outline: none; font-size: 15px; }
+.welcome-form input:focus { border-color: var(--accent); }
+.welcome-cta { font-size: 17px; padding: 15px 28px; white-space: nowrap; }
+.welcome-note { color: var(--text-muted); font-size: 14px; }
+.welcome-note a { color: var(--accent); text-decoration: none; font-weight: 700; cursor: pointer; }
+.welcome-features { position: relative; max-width: 1000px; margin: 0 auto; padding: 50px 24px 70px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; border-top: 1px solid #201414; }
+.feature { text-align: center; padding: 10px; }
+.feature-icon { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, rgba(226,38,28,.25), rgba(226,38,28,.06)); border: 1px solid rgba(226,38,28,.3); color: var(--accent); display: flex; align-items: center; justify-content: center; }
+.feature-icon svg { width: 26px; height: 26px; }
+.feature h3 { font-size: 17px; margin-bottom: 8px; font-weight: 800; }
+.feature p { color: var(--text-muted); font-size: 14px; line-height: 1.65; }
+.welcome-footer { text-align: center; padding: 28px 20px; color: #666; font-size: 12px; border-top: 1px solid #1a1a1a; }
+@media (max-width: 700px) {
+  .hero { height: 60vh; padding: 30px 20px; margin: -1px -16px 24px; }
+  .hero-content h1 { font-size: 28px; }
+  .row-card { width: 128px; }
+  .row-card img { height: 185px; }
+  .auth-wrap { margin: 30px 16px; padding: 28px 20px; }
+  .field-row { flex-direction: column; gap: 0; }
+  .welcome-header { padding: 16px 20px; }
+  .welcome-hero h1 { font-size: 30px; }
+  .welcome-sub { font-size: 15px; }
+  .welcome-features { grid-template-columns: 1fr; }
+  .welcome-form { flex-direction: column; }
+  .welcome-bg { grid-template-columns: repeat(3, 1fr); }
+  header { padding: 12px; }
+  .logo { font-size: 20px; }
+  .search-box { width: 100%; margin-left: 0; }
+  .search-box input { width: 100%; }
+  main { padding: 16px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+  .card img { height: 190px; }
+  .detail h1 { font-size: 24px; }
+  .detail img.poster { width: 100%; max-width: 260px; margin: 0 auto; }
+}
+.back-btn { background: var(--bg-2); border: 1px solid #333; color: var(--text); width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: auto; }
+.back-btn svg { width: 20px; height: 20px; }
+.back-btn:hover { border-color: var(--accent); color: var(--accent); }
+.search-hero { padding: 10px 0 24px; }
+.search-box-lg { max-width: 560px; margin: 0 auto; background: var(--card); border: 1px solid #2a2a2a; border-radius: 10px; padding: 4px 16px; display: flex; align-items: center; gap: 10px; }
+.search-box-lg .search-icon { color: var(--text-muted); display: flex; }
+.search-box-lg input { flex: 1; background: none; border: none; color: var(--text); padding: 14px 0; outline: none; font-size: 15px; }
+.card, .row-card { overflow: hidden; }
+.card a, .row-card a { position: relative; display: block; }
+.card a::after, .row-card a::after { content: "▶"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 26px; color: #fff; background: rgba(10,10,10,.45); opacity: 0; transition: opacity .2s; pointer-events: none; }
+.card:hover a::after, .row-card:hover a::after { opacity: 1; }
+.has-bottom-nav { padding-bottom: 78px; }
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 600; display: flex; background: rgba(10,10,10,.97); border-top: 1px solid #222; padding: 8px 4px calc(8px + env(safe-area-inset-bottom)); backdrop-filter: blur(10px); }
+.bottom-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; color: #7a7a7a; text-decoration: none; font-size: 10.5px; font-weight: 600; padding: 4px 0; cursor: pointer; }
+.bottom-nav a svg { width: 22px; height: 22px; }
+.bottom-nav a.active { color: var(--accent); }
+.bottom-nav a.active svg { stroke: var(--accent); }
+.search-box button svg, .search-icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
+.webtoon-reader { max-width: 800px; margin: 0 auto; }
+.webtoon-reader img { width: 100%; display: block; margin: 0; }
+
+/* ===== FICHE DÉTAIL — façon Netflix ===== */
+.dhero { position: relative; min-height: 56vh; background-size: cover; background-position: center 20%; margin: -24px -24px 0; padding: 70px 40px 46px; display: flex; align-items: flex-end; }
+.dhero::before { content: ""; position: absolute; inset: 0; background:
+    linear-gradient(180deg, rgba(10,10,10,.15) 0%, rgba(10,10,10,.55) 60%, var(--bg) 100%),
+    linear-gradient(90deg, rgba(10,10,10,.92) 0%, rgba(10,10,10,.25) 55%, rgba(10,10,10,.1) 100%); }
+.dhero-content { position: relative; max-width: 640px; }
+.dhero-content h1 { font-size: 40px; font-weight: 900; margin-bottom: 12px; text-shadow: 0 6px 24px rgba(0,0,0,.6); line-height: 1.1; }
+.dhero-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.dhero-meta .year { color: var(--text-muted); font-weight: 700; font-size: 14px; }
+.dhero-synopsis { color: #eee; line-height: 1.7; margin-bottom: 24px; text-shadow: 0 2px 12px rgba(0,0,0,.7); max-width: 560px; }
+.dhero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+.dhero-actions .btn { font-size: 16px; padding: 13px 30px; }
+
+.detail-body { max-width: 1100px; margin: 34px auto 0; padding: 0 4px; }
+.detail-body-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 6px; }
+
+.season-select-wrap { position: relative; }
+.season-select {
+  appearance: none; -webkit-appearance: none; background: var(--card); color: var(--text);
+  border: 1px solid #2a2a35; border-radius: 8px; padding: 10px 36px 10px 16px;
+  font-size: 14px; font-weight: 700; cursor: pointer; outline: none;
+}
+.season-select:focus { border-color: var(--accent); }
+.season-select-wrap::after {
+  content: "▾"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); pointer-events: none; font-size: 13px;
+}
+
+.ep-rows { display: flex; flex-direction: column; gap: 2px; margin-top: 18px; }
+.ep-row {
+  display: flex; align-items: center; gap: 16px; padding: 14px 16px; border-radius: 10px;
+  background: var(--bg-2); border: 1px solid transparent; text-decoration: none; color: var(--text);
+  transition: .15s; cursor: pointer;
+}
+.ep-row:hover { background: var(--card); border-color: #2a2a35; }
+.ep-row .ep-num { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: #262626; color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+.ep-row:hover .ep-num { background: var(--accent); color: #000; }
+.ep-row .ep-info { flex: 1; min-width: 0; }
+.ep-row .ep-info .ep-title { font-weight: 700; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ep-row .ep-info .ep-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.ep-row .ep-play { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.ep-row:hover .ep-play { color: var(--accent); }
+
+.similar-row { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 14px; scroll-behavior: smooth; }
+
+@media (max-width: 700px) {
+  .dhero { margin: -16px -16px 0; padding: 40px 20px 32px; min-height: 46vh; }
+  .dhero-content h1 { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+
+<header id="siteHeader"></header>
+<div id="hero"></div>
+<div id="app"><div class="loader">Chargement</div></div>
+
+<script>
+/* =========================================================
+   API — cœur de communication avec le backend PRINCE MOVIE
+   ========================================================= */
+const API_BASE = "http://51.75.118.170:20041/api/v1";
+
+const PROXIES = [
+  "https://api.allorigins.win/raw?url=",
+  "https://corsproxy.io/?url=",
+  "https://api.codetabs.com/v1/proxy?quest=",
+];
+
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const memCache = new Map();
+
+function cacheRead(key) {
+  const now = Date.now();
+  const mem = memCache.get(key);
+  if (mem && now - mem.t < CACHE_TTL_MS) return mem.v;
+  try {
+    const raw = sessionStorage.getItem("pm_cache:" + key);
+    if (!raw) return null;
+    const { t, v } = JSON.parse(raw);
+    if (now - t >= CACHE_TTL_MS) return null;
+    memCache.set(key, { t, v });
+    return v;
+  } catch (e) { return null; }
+}
+function cacheWrite(key, v) {
+  const entry = { t: Date.now(), v };
+  memCache.set(key, entry);
+  try { sessionStorage.setItem("pm_cache:" + key, JSON.stringify(entry)); } catch (e) {}
+  // Copie "dernière version connue", sans expiration, dans localStorage :
+  // sert de filet de secours si une future requête échoue complètement
+  // (proxys en rate-limit, etc.) plutôt que de faire disparaître la section.
+  try { localStorage.setItem("pm_lastgood:" + key, JSON.stringify(v)); } catch (e) {}
+}
+function cacheReadLastGood(key) {
+  try {
+    const raw = localStorage.getItem("pm_lastgood:" + key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+// BUGFIX : les proxys CORS publics gratuits (allorigins/corsproxy/codetabs)
+// se mettent en rate-limit quand trop de requêtes partent en même temps —
+// ce qui arrivait à chaque chargement de l'accueil (5 sections × plusieurs
+// sources en parallèle). On limite le nombre de requêtes proxy simultanées
+// pour éviter ces échecs intermittents ("parfois les films n'apparaissent
+// pas").
+class Semaphore {
+  constructor(max) { this.max = max; this.count = 0; this.queue = []; }
+  acquire() {
+    return new Promise(resolve => {
+      const tryAcquire = () => {
+        if (this.count < this.max) { this.count++; resolve(() => this.release()); }
+        else this.queue.push(tryAcquire);
+      };
+      tryAcquire();
+    });
+  }
+  release() { this.count--; const next = this.queue.shift(); if (next) next(); }
+}
+const proxySemaphore = new Semaphore(3);
+
+async function apiRaw(path, params = {}) {
+  const url = new URL(API_BASE + path);
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== null && v !== undefined && v !== "") url.searchParams.set(k, v);
+  });
+  const urlStr = url.toString();
+  const cacheKey = urlStr;
+  const cached = cacheRead(cacheKey);
+  if (cached) return cached;
+
+  // On tente TOUJOURS un appel direct (sans proxy) en même temps que les
+  // proxys CORS : si l'API autorise déjà les requêtes cross-origin, c'est
+  // presque toujours la plus rapide et la plus fiable des sources.
+  const directController = new AbortController();
+  const directTimer = setTimeout(() => directController.abort(), 9000);
+  const directAttempt = fetch(urlStr, { signal: directController.signal })
+    .then(async (res) => {
+      let json;
+      try { json = await res.json(); }
+      catch (e) { throw new Error("Réponse invalide de l'API."); }
+      if (json && json.success === false) {
+        const err = new Error(json.error?.message || "Erreur inconnue.");
+        err.code = json.error?.code;
+        throw err;
+      }
+      return json;
+    })
+    .finally(() => clearTimeout(directTimer));
+
+  const controllers = PROXIES.map(() => new AbortController());
+  const attempts = PROXIES.map((proxy, i) => (async () => {
+    const release = await proxySemaphore.acquire();
+    const timer = setTimeout(() => controllers[i].abort(), 9000);
+    try {
+      const res = await fetch(proxy + encodeURIComponent(urlStr), { signal: controllers[i].signal });
+      let json;
+      try { json = await res.json(); }
+      catch (e) { throw new Error("Réponse invalide du proxy."); }
+      if (!json.success) {
+        const err = new Error(json.error?.message || "Erreur inconnue.");
+        err.code = json.error?.code;
+        throw err;
+      }
+      return json;
+    } finally {
+      clearTimeout(timer);
+      release();
+    }
+  })());
+  attempts.push(directAttempt);
+
+  try {
+    const json = await Promise.any(attempts);
+    controllers.forEach(c => c.abort());
+    directController.abort();
+    cacheWrite(cacheKey, json);
+    return json;
+  } catch (aggregateErr) {
+    // Dernier filet : si on a déjà réussi à charger cette même ressource
+    // par le passé (même après la fenêtre de cache normale), on la réutilise
+    // plutôt que de faire disparaître la section à l'écran.
+    const lastGood = cacheReadLastGood(cacheKey);
+    if (lastGood) return lastGood;
+    const errors = (aggregateErr && aggregateErr.errors) || [aggregateErr];
+    const lastErr = errors[errors.length - 1];
+    const err = new Error(lastErr?.message || "Source indisponible. Réessaie dans un instant.");
+    err.code = lastErr?.code || "source_unavailable";
+    throw err;
+  }
+}
+
+// BUGFIX : certains endpoints (webtoons/pages) peuvent attendre un nom de
+// paramètre différent selon la version de l'API ("chapter" vs "chapter_id").
+// On essaie la forme principale, et seulement si elle échoue on retente
+// avec la forme alternative. Et dans tous les cas, avant d'abandonner et
+// d'afficher une erreur à l'écran, on retente une dernière fois après une
+// courte pause : les proxys publics ont parfois des ratés ponctuels qui
+// n'ont rien à voir avec une vraie panne de l'API.
+async function api(path, params = {}, altParams = null) {
+  try {
+    return await apiRaw(path, params);
+  } catch (e1) {
+    if (altParams) {
+      try { return await apiRaw(path, altParams); }
+      catch (e2) { /* on retombe sur la dernière tentative ci-dessous */ }
+    }
+    await new Promise(r => setTimeout(r, 700));
+    return await apiRaw(path, params);
+  }
+}
+
+/* =========================================================
+   COMPTE (mock front-end uniquement, stocké en localStorage)
+   ========================================================= */
+const AUTH_KEY = "pm_user";
+const SESSION_KEY = "pm_session";
+const MYLIST_KEY = "pm_mylist";
+const PUBLIC_ROUTES = ["index", "inscription", "connexion"];
+
+function getCurrentUser() {
+  try { const raw = localStorage.getItem(AUTH_KEY); return raw ? JSON.parse(raw) : null; }
+  catch (e) { return null; }
+}
+function isLoggedIn() {
+  return sessionStorage.getItem(SESSION_KEY) === "1" || localStorage.getItem(SESSION_KEY) === "1";
+}
+function registerUser({ nom, prenom, email, telephone, password }) {
+  const user = { nom, prenom, email, telephone, password };
+  localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+  localStorage.setItem(SESSION_KEY, "1");
+}
+function loginUser(email, password) {
+  const user = getCurrentUser();
+  if (!user) return { ok: false, message: "Aucun compte trouvé. Inscris-toi d'abord." };
+  if (user.email.toLowerCase() !== email.toLowerCase() || user.password !== password) {
+    return { ok: false, message: "Email ou mot de passe incorrect." };
+  }
+  localStorage.setItem(SESSION_KEY, "1");
+  return { ok: true };
+}
+function logoutUser() {
+  localStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+  nav("index"); // BUGFIX : "accueil" est une route protégée, ça provoquait un aller-retour
+  renderChrome();
+}
+function updateUser(patch) {
+  const user = getCurrentUser() || {};
+  const updated = { ...user, ...patch };
+  localStorage.setItem(AUTH_KEY, JSON.stringify(updated));
+  return updated;
+}
+
+/* ---------- Ma Liste ---------- */
+function getMyList() {
+  try { return JSON.parse(localStorage.getItem(MYLIST_KEY) || "[]"); }
+  catch (e) { return []; }
+}
+function isInMyList(slug) { return getMyList().some(i => i.slug === slug); }
+function toggleMyList(item) {
+  const list = getMyList();
+  const idx = list.findIndex(i => i.slug === item.slug);
+  if (idx >= 0) { list.splice(idx, 1); }
+  else { list.unshift({ slug: item.slug, title: item.title, image: item.image, type: item.type, version: item.version }); }
+  localStorage.setItem(MYLIST_KEY, JSON.stringify(list));
+  return idx < 0;
+}
+
+/* =========================================================
+   ROUTAGE (hash-based, un seul fichier index.html)
+   ========================================================= */
+function currentRoute() {
+  let hash = location.hash.replace(/^#\/?/, "");
+  if (!hash) hash = getCurrentUser() && isLoggedIn() ? "accueil" : "index";
+  const [path, queryStr] = hash.split("?");
+  return { path: path || "index", params: new URLSearchParams(queryStr || "") };
+}
+function nav(pathWithQuery) { location.hash = "#/" + pathWithQuery; }
+function getParam(key) { return currentRoute().params.get(key); }
+function getSlug(key = "slug") { return getParam(key); }
+
+// BUGFIX : les pages produit renvoyaient des "type" pas toujours cohérents
+// avec les clés utilisées pour choisir la page de détail (ex: "dramas" vs
+// "drama", "webtoons" vs "webtoon"). On normalise pour que le clic sur un
+// résultat de recherche ou une carte mène TOUJOURS à la bonne fiche.
+const TYPE_ROUTE = {
+  movie: "film", movies: "film", film: "film",
+  series: "serie", serie: "serie",
+  anime: "anime", animes: "anime",
+  drama: "drama", dramas: "drama",
+  webtoon: "webtoon", webtoons: "webtoon",
+};
+function detailRoute(item) {
+  const raw = (item && item.type ? String(item.type) : "").toLowerCase().trim();
+  return TYPE_ROUTE[raw] || TYPE_ROUTE[raw.replace(/s$/, "")] || "film";
+}
+
+const WARN_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M10.3 3.6 1.8 18a1.6 1.6 0 0 0 1.4 2.4h17.6a1.6 1.6 0 0 0 1.4-2.4L13.7 3.6a1.6 1.6 0 0 0-2.8 0Z"/><path d="M12 16.2h.01"/></svg>`;
+
+function showRetryBanner(message, onRetry) {
+  const old = document.getElementById("retry-banner");
+  if (old) old.remove();
+  const banner = document.createElement("div");
+  banner.id = "retry-banner";
+  banner.className = "retry-banner";
+  banner.innerHTML = `<span class="retry-banner-msg">${WARN_ICON}${message || "Erreur de connexion à la source."}</span><button type="button">Réessayer</button>`;
+  banner.querySelector("button").onclick = () => { banner.remove(); if (onRetry) onRetry(); };
+  document.body.prepend(banner);
+}
+function showError(message, homeRoute) {
+  const app = document.getElementById("app");
+  if (!app) return;
+  const home = homeRoute || (PUBLIC_ROUTES.includes(currentRoute().path) ? "index" : "accueil");
+  app.innerHTML = `
+    <div class="error-box">
+      <div class="error-icon">${WARN_ICON}</div>
+      <h2>Une erreur est survenue</h2>
+      <p>${message}</p>
+      <a class="btn" onclick="nav('${home}')">Retour à l'accueil</a>
+    </div>`;
+}
+function doSearchFrom(inputId = "searchInput") {
+  const el = document.getElementById(inputId);
+  const q = el.value.trim();
+  if (q.length < 2) return alert("Minimum 2 caractères");
+  nav(`recherche?q=${encodeURIComponent(q)}`);
+}
+function cardBadgeClass(v) { return v === "VOSTFR" ? "vostfr" : v === "TrueFrench" ? "truefrench" : ""; }
+
+const allItemsBySlug = {};
+function trackItems(items) { (items || []).forEach(i => { if (i && i.slug) allItemsBySlug[i.slug] = i; }); }
+
+function bindHearts(scope) {
+  scope.querySelectorAll(".mylist-heart").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const slug = btn.dataset.slug;
+      const item = allItemsBySlug[slug];
+      if (!item) return;
+      const added = toggleMyList(item);
+      document.querySelectorAll(`.mylist-heart[data-slug="${CSS.escape(slug)}"]`).forEach(b => {
+        b.classList.toggle("active", added);
+        b.textContent = added ? "♥" : "♡";
+      });
+    });
+  });
+}
+
+function cardHtml(item, size /* "grid" | "row" */) {
+  const route = detailRoute(item);
+  const badgeClass = cardBadgeClass(item.version);
+  const inList = isInMyList(item.slug);
+  const epTag = item.latest_episode || item.latest_chapter || "";
+  const cls = size === "row" ? "row-card" : "card";
+  return `
+    <div class="${cls}" title="${item.title}">
+      <button type="button" class="mylist-heart ${inList ? "active" : ""}" data-slug="${item.slug}" aria-label="Ma Liste">${inList ? "♥" : "♡"}</button>
+      <a onclick="nav('${route}?slug=${encodeURIComponent(item.slug)}')">
+        <img src="${item.image}" alt="${item.title}" loading="lazy"
+             onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22300%22%3E%3Crect fill=%22%23222%22 width=%22200%22 height=%22300%22/%3E%3C/svg%3E'">
+        <span class="badge ${badgeClass} row-card-badge">${item.version || ""}</span>
+        ${size !== "row" && epTag ? `<span class="tag card-ep-tag">${epTag}</span>` : ""}
+      </a>
+    </div>`;
+}
+
+/* =========================================================
+   CHROME : en-tête (logo + recherche + compte) + barre du bas
+   ========================================================= */
+const NAV_ICONS = {
+  home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>`,
+  grid: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`,
+  search: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>`,
+  heart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7.5-4.6-10-9.3C.4 8.1 2 4.5 5.6 4c2-.3 3.9.6 5 2.2C11.7 4.6 13.6 3.7 15.6 4c3.6.5 5.2 4.1 3.6 7.7C21 16.4 12 21 12 21Z"/></svg>`,
+  gear: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>`,
+};
+const BOTTOM_NAV_ITEMS = [
+  { route: "accueil", label: "Accueil", match: ["accueil"], icon: NAV_ICONS.home },
+  { route: "catalogue", label: "Parcourir", match: ["catalogue", "film", "serie", "anime", "drama", "webtoon", "lecteur"], icon: NAV_ICONS.grid },
+  { route: "recherche", label: "Recherche", match: ["recherche"], icon: NAV_ICONS.search },
+  { route: "maliste", label: "Ma Liste", match: ["maliste"], icon: NAV_ICONS.heart },
+  { route: "parametres", label: "Compte", match: ["parametres"], icon: NAV_ICONS.gear },
+];
+
+function renderChrome() {
+  const route = currentRoute().path;
+  const header = document.getElementById("siteHeader");
+  const loggedIn = getCurrentUser() && isLoggedIn();
+
+  if (route === "index") {
+    header.innerHTML = "";
+    document.body.classList.remove("has-bottom-nav");
+    const old = document.getElementById("bottomNav");
+    if (old) old.remove();
+    return;
+  }
+
+  // BUGFIX : la page Recherche a déjà sa propre grande barre de recherche —
+  // on masque celle du header sur cette route pour ne pas en avoir deux.
+  const showSearch = loggedIn && !["connexion", "inscription", "recherche"].includes(route);
+  header.innerHTML = `
+    <a class="logo" onclick="nav('${loggedIn ? "accueil" : "index"}')"><svg class="logo-mark" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="22" height="22" rx="6" fill="#e2261c"/><path d="M9.5 7l8 5-8 5V7z" fill="#0a0a0a"/></svg>PRINCE MOVIE</a>
+    ${showSearch ? `
+    <div class="search-box">
+      <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+      <input id="headerSearchInput" type="text" placeholder="Rechercher un titre...">
+    </div>` : ""}
+    <div id="accountMenu" class="account-menu"></div>
+  `;
+
+  if (showSearch) {
+    document.getElementById("headerSearchInput").addEventListener("keypress", (e) => {
+      if (e.key === "Enter") doSearchFrom("headerSearchInput");
+    });
+  }
+
+  const user = getCurrentUser();
+  const menu = document.getElementById("accountMenu");
+  if (loggedIn) {
+    const initiale = (user.prenom || "?").charAt(0).toUpperCase();
+    menu.innerHTML = `
+      <button type="button" class="account-avatar" id="accountToggle">${initiale}</button>
+      <div class="account-dropdown" id="accountDropdown">
+        <div class="account-dropdown-name">${user.prenom || ""} ${user.nom || ""}</div>
+        <div class="account-dropdown-sub">${user.email || ""}</div>
+        <div class="account-dropdown-sub">${user.telephone || ""}</div>
+        <button type="button" id="logoutBtn">Déconnexion</button>
+      </div>`;
+    const toggle = document.getElementById("accountToggle");
+    const dropdown = document.getElementById("accountDropdown");
+    toggle.addEventListener("click", (e) => { e.stopPropagation(); dropdown.classList.toggle("open"); });
+    document.addEventListener("click", () => dropdown.classList.remove("open"), { once: true });
+    document.getElementById("logoutBtn").addEventListener("click", logoutUser);
+  } else {
+    menu.innerHTML = `
+      <a class="account-link" onclick="nav('connexion')">Connexion</a>
+      <a class="btn account-btn-signup" onclick="nav('inscription')">S'inscrire</a>`;
+  }
+
+  // barre du bas façon appli mobile
+  if (loggedIn) {
+    let bn = document.getElementById("bottomNav");
+    if (!bn) {
+      bn = document.createElement("nav");
+      bn.id = "bottomNav";
+      bn.className = "bottom-nav";
+      document.body.appendChild(bn);
+      document.body.classList.add("has-bottom-nav");
+    }
+    bn.innerHTML = BOTTOM_NAV_ITEMS.map(it =>
+      `<a onclick="nav('${it.route}')" class="${it.match.includes(route) ? "active" : ""}">${it.icon}<span>${it.label}</span></a>`
+    ).join("");
+  } else {
+    const bn = document.getElementById("bottomNav");
+    if (bn) bn.remove();
+    document.body.classList.remove("has-bottom-nav");
+  }
+}
+
+/* =========================================================
+   PAGES / VUES
+   ========================================================= */
+
+function viewIndex() {
+  if (getCurrentUser() && isLoggedIn()) { nav("accueil"); return; }
+  document.body.classList.add("welcome-body");
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="welcome-bg" id="welcomeBg"></div>
+    <div class="welcome-overlay"></div>
+    <header class="welcome-header">
+      <span class="logo logo-lg"><svg class="logo-mark" viewBox="0 0 24 24" width="30" height="30" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="22" height="22" rx="6" fill="#e2261c"/><path d="M9.5 7l8 5-8 5V7z" fill="#0a0a0a"/></svg>PRINCE MOVIE</span>
+      <a class="btn welcome-login-btn" onclick="nav('connexion')">Se connecter</a>
+    </header>
+    <p class="welcome-credit">CRÉÉ PAR PRINCE★</p>
+    <main class="welcome-hero">
+      <div class="welcome-logo-big">
+        <svg viewBox="0 0 220 220" width="120" height="120" xmlns="http://www.w3.org/2000/svg">
+          <rect x="6" y="6" width="208" height="208" rx="46" fill="#e2261c"/>
+          <path d="M84 60l84 50-84 50V60z" fill="#0a0a0a"/>
+        </svg>
+      </div>
+      <h1>Films, séries, animés,<br>K-dramas et webtoons.</h1>
+      <p class="welcome-sub">Tout ton divertissement au même endroit.<br>Crée ton compte pour commencer à regarder.</p>
+      <form id="quickForm" class="welcome-form">
+        <input id="quickEmail" type="email" placeholder="Adresse email" autocomplete="email">
+        <button type="submit" class="btn welcome-cta">Commencer <span aria-hidden="true">›</span></button>
+      </form>
+      <p class="welcome-note">Déjà inscrit ? <a onclick="nav('connexion')">Connecte-toi ici</a></p>
+    </main>
+    <section class="welcome-features">
+      <div class="feature"><h3>Un catalogue complet</h3><p>Films, séries, animés, K-dramas et webtoons réunis dans un seul catalogue.</p></div>
+      <div class="feature"><h3>Sur tous tes écrans</h3><p>Regarde sur ton téléphone, ta tablette ou ton ordinateur.</p></div>
+      <div class="feature"><h3>Trouve tout en un instant</h3><p>La recherche te sort le bon titre immédiatement, VF comme VOSTFR.</p></div>
+    </section>
+    <footer class="welcome-footer"><p>PRINCE MOVIE — Projet de démonstration, non affilié à un service commercial.</p></footer>
+  `;
+  document.getElementById("quickForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const email = document.getElementById("quickEmail").value.trim();
+    nav(`inscription${email ? "?email=" + encodeURIComponent(email) : ""}`);
+  });
+  api("/movies", { page: 1 }).then(({ data }) => {
+    if (!data || !data.length) return;
+    document.getElementById("welcomeBg").innerHTML = data.slice(0, 18).map(m => `<img src="${m.image}" alt="" loading="lazy">`).join("");
+  }).catch(() => {});
+}
+
+function viewConnexion() {
+  document.body.classList.remove("welcome-body");
+  document.getElementById("app").innerHTML = `
+    <div class="auth-wrap">
+      <h1>Connexion</h1>
+      <p class="sub">Content de te revoir</p>
+      <div class="field-error" id="loginError" style="display:none; margin-bottom:16px; font-size:14px;"></div>
+      <form id="loginForm" novalidate>
+        <div class="field"><label for="email">Adresse email</label><input id="email" type="email" autocomplete="email"></div>
+        <div class="field"><label for="password">Mot de passe</label><input id="password" type="password" autocomplete="current-password"></div>
+        <button type="submit" class="btn auth-submit">Se connecter</button>
+      </form>
+      <div class="auth-switch">Pas encore de compte ? <a onclick="nav('inscription')">S'inscrire</a></div>
+    </div>`;
+  document.getElementById("loginForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    const errEl = document.getElementById("loginError");
+    const result = loginUser(email, password);
+    if (!result.ok) { errEl.textContent = result.message; errEl.style.display = "block"; return; }
+    renderChrome();
+    nav("accueil");
+  });
+}
+
+function viewInscription() {
+  document.body.classList.remove("welcome-body");
+  document.getElementById("app").innerHTML = `
+    <div class="auth-wrap">
+      <h1>Créer un compte</h1>
+      <p class="sub">Inscris-toi pour profiter de PRINCE MOVIE</p>
+      <div class="notice-banner">${WARN_ICON}<span>Ce compte est stocké uniquement dans ton navigateur (démo visuelle) — pas de vrai serveur, ni de synchronisation entre appareils.</span></div>
+      <form id="signupForm" novalidate autocomplete="off">
+        <div class="field-row">
+          <div class="field" id="f-prenom"><label for="prenom">Prénom</label><input id="prenom" type="text" autocomplete="given-name"><div class="field-error">Le prénom est requis.</div></div>
+          <div class="field" id="f-nom"><label for="nom">Nom</label><input id="nom" type="text" autocomplete="family-name"><div class="field-error">Le nom est requis.</div></div>
+        </div>
+        <div class="field" id="f-email"><label for="email">Adresse email</label><input id="email" type="email" autocomplete="email" placeholder="toi@exemple.com"><div class="field-error">Entre une adresse email valide.</div></div>
+        <div class="field" id="f-telephone"><label for="telephone">Numéro de téléphone</label><input id="telephone" type="tel" autocomplete="tel" placeholder="+33 6 12 34 56 78"><div class="field-error">Entre un numéro de téléphone valide.</div></div>
+        <div class="field" id="f-password"><label for="password">Mot de passe</label><input id="password" type="password" autocomplete="new-password" placeholder="8 caractères minimum"><div class="field-error">8 caractères minimum.</div></div>
+        <div class="field" id="f-password2"><label for="password2">Confirmer le mot de passe</label><input id="password2" type="password" autocomplete="new-password"><div class="field-error">Les mots de passe ne correspondent pas.</div></div>
+        <button type="submit" class="btn auth-submit">S'inscrire</button>
+      </form>
+      <div class="auth-switch">Déjà un compte ? <a onclick="nav('connexion')">Se connecter</a></div>
+    </div>`;
+  const prefillEmail = getParam("email");
+  if (prefillEmail) document.getElementById("email").value = prefillEmail;
+  function setInvalid(id, invalid) { document.getElementById(id).classList.toggle("invalid", invalid); }
+  document.getElementById("signupForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const prenom = document.getElementById("prenom").value.trim();
+    const nom = document.getElementById("nom").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const telephone = document.getElementById("telephone").value.trim();
+    const password = document.getElementById("password").value;
+    const password2 = document.getElementById("password2").value;
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const phoneOk = /^[0-9+\s().-]{8,}$/.test(telephone);
+    const passOk = password.length >= 8;
+    const matchOk = password === password2 && password2.length > 0;
+    setInvalid("f-prenom", !prenom); setInvalid("f-nom", !nom); setInvalid("f-email", !emailOk);
+    setInvalid("f-telephone", !phoneOk); setInvalid("f-password", !passOk); setInvalid("f-password2", !matchOk);
+    if (!prenom || !nom || !emailOk || !phoneOk || !passOk || !matchOk) return;
+    registerUser({ nom, prenom, email, telephone, password });
+    renderChrome();
+    nav("accueil");
+  });
+  document.querySelectorAll(".field input").forEach(input => {
+    input.addEventListener("input", () => input.closest(".field").classList.remove("invalid"));
+  });
+}
+
+const HOME_SECTIONS = [
+  { key: "movies", title: "Films populaires", tab: "movies" },
+  { key: "series", title: "Séries", tab: "series" },
+  { key: "anime", title: "Animés", tab: "anime" },
+  { key: "dramas", title: "K-Dramas", tab: "dramas" },
+  { key: "webtoons", title: "Webtoons", tab: "webtoons" },
+];
+
+function renderHero(item) {
+  const heroEl = document.getElementById("hero");
+  if (!item) { heroEl.className = ""; heroEl.innerHTML = ""; heroEl.style.backgroundImage = ""; return; }
+  const route = detailRoute(item);
+  const badgeClass = cardBadgeClass(item.version);
+  heroEl.className = "hero";
+  heroEl.style.backgroundImage = `url('${item.image}')`;
+  heroEl.innerHTML = `
+    <div class="hero-content">
+      <div class="hero-badges">
+        <span class="badge ${badgeClass}">${item.version || ""}</span>
+        ${item.year ? `<span class="tag">${item.year}</span>` : ""}
+      </div>
+      <h1>${item.title}</h1>
+      <p>${item.synopsis || "Découvre ce titre en streaming sur PRINCE MOVIE."}</p>
+      <div class="hero-actions">
+        <a class="btn" onclick="nav('${route}?slug=${encodeURIComponent(item.slug)}')">▶ Regarder</a>
+        <a class="btn-outline" onclick="nav('${route}?slug=${encodeURIComponent(item.slug)}')">ℹ Plus d'infos</a>
+      </div>
+    </div>`;
+}
+
+async function viewAccueil() {
+  document.body.classList.remove("welcome-body");
+  document.getElementById("app").innerHTML = `<main class="rows-wrap" id="rows"><div class="loader">Chargement</div></main>`;
+  const rowsEl = document.getElementById("rows");
+  rowsEl.innerHTML = "";
+
+  const myList = getMyList();
+  if (myList.length) {
+    trackItems(myList);
+    const block = document.createElement("div");
+    block.id = "myListBlock";
+    block.className = "row-block";
+    block.innerHTML = `<div class="row-head"><h2>Ma Liste</h2></div><div class="row-scroll">${myList.map(i => cardHtml(i, "row")).join("")}</div>`;
+    rowsEl.appendChild(block);
+    bindHearts(block);
+  }
+
+  const results = await Promise.allSettled(HOME_SECTIONS.map((s, i) =>
+    new Promise(r => setTimeout(r, i * 120)).then(() => api(`/${s.tab}`, { page: 1 }))
+  ));
+  let heroSet = false, anyLoaded = false;
+
+  results.forEach((result, idx) => {
+    const section = HOME_SECTIONS[idx];
+    if (result.status !== "fulfilled") { console.error(`Erreur sur ${section.key} :`, result.reason); return; }
+    const { data } = result.value;
+    if (!data || !data.length) return;
+    anyLoaded = true;
+    trackItems(data);
+    if (!heroSet) {
+      renderHero(data[Math.floor(Math.random() * Math.min(data.length, 5))]);
+      heroSet = true;
+    }
+    const block = document.createElement("div");
+    block.className = "row-block";
+    block.innerHTML = `
+      <div class="row-head"><h2>${section.title}</h2><a onclick="nav('catalogue?tab=${section.tab}')">Tout voir ›</a></div>
+      <div class="row-scroll">${data.map(i => cardHtml(i, "row")).join("")}</div>`;
+    rowsEl.appendChild(block);
+    bindHearts(block);
+  });
+
+  if (!anyLoaded && !myList.length) {
+    renderHero(null);
+    rowsEl.innerHTML = `
+      <div class="error-box">
+        <div class="error-icon">${WARN_ICON}</div>
+        <h2>Une erreur est survenue</h2>
+        <p>Impossible de charger le catalogue pour le moment.</p>
+        <button class="btn" onclick="viewAccueil()">Réessayer</button>
+      </div>`;
+  }
+}
+
+const CATALOGUE_TITLES = { movies: "Films", series: "Séries", anime: "Animés", dramas: "K-Dramas", webtoons: "Webtoons" };
+let catState = { tab: "movies", page: 1, hasContent: false, seq: 0 };
+
+function viewCatalogue() {
+  document.getElementById("hero").innerHTML = "";
+  document.getElementById("hero").className = "";
+  document.body.classList.remove("welcome-body");
+  const validTabs = Object.keys(CATALOGUE_TITLES);
+  const tabParam = getParam("tab");
+  catState = { tab: validTabs.includes(tabParam) ? tabParam : "movies", page: 1, hasContent: false, seq: catState.seq };
+
+  document.getElementById("app").innerHTML = `
+    <main class="has-chips">
+      <div class="chip-row" id="chipRow">
+        ${validTabs.map(t => `<button type="button" class="chip ${t === catState.tab ? "active" : ""}" data-tab="${t}">${CATALOGUE_TITLES[t]}</button>`).join("")}
+      </div>
+      <h1 class="section-title" id="catTitle">${CATALOGUE_TITLES[catState.tab]}</h1>
+      <div id="catApp"><div class="loader">Chargement</div></div>
+      <div class="pagination" id="catPagination"></div>
+    </main>`;
+
+  document.querySelectorAll("#chipRow .chip").forEach(chip => {
+    chip.onclick = () => {
+      document.querySelectorAll("#chipRow .chip").forEach(x => x.classList.remove("active"));
+      chip.classList.add("active");
+      catState.tab = chip.dataset.tab;
+      catState.page = 1;
+      catState.hasContent = false;
+      document.getElementById("catTitle").textContent = CATALOGUE_TITLES[catState.tab];
+      loadCatalogueTab();
+    };
+  });
+
+  loadCatalogueTab();
+}
+
+async function loadCatalogueTab() {
+  const app = document.getElementById("catApp");
+  const pag = document.getElementById("catPagination");
+  const mySeq = ++catState.seq;
+  if (!catState.hasContent) { app.innerHTML = `<div class="loader">Chargement</div>`; pag.innerHTML = ""; }
+  try {
+    const json = await api(`/${catState.tab}`, { page: catState.page });
+    if (mySeq !== catState.seq) return;
+    catState.hasContent = true;
+    renderCatalogueGrid(json.data);
+    renderCataloguePagination(json.meta);
+  } catch (e) {
+    if (mySeq !== catState.seq) return;
+    console.error("Erreur :", e);
+    if (catState.hasContent) showRetryBanner("Impossible de charger cette page. " + e.message, loadCatalogueTab);
+    else showError(e.message, "accueil");
+  }
+}
+function renderCatalogueGrid(items) {
+  const app = document.getElementById("catApp");
+  if (!items || !items.length) { app.innerHTML = "<p>Aucun résultat.</p>"; return; }
+  trackItems(items);
+  app.innerHTML = `<div class="grid">` + items.map(i => cardHtml(i, "grid")).join("") + `</div>`;
+  bindHearts(app);
+}
+function renderCataloguePagination(meta) {
+  const pag = document.getElementById("catPagination");
+  if (!meta || meta.last_page <= 1) { pag.innerHTML = ""; return; }
+  const total = meta.last_page, p = catState.page;
+  let html = `<button ${p === 1 ? "disabled" : ""} onclick="goCataloguePage(${p - 1})">« Précédent</button>`;
+  const start = Math.max(1, p - 2), end = Math.min(total, p + 2);
+  for (let i = start; i <= end; i++) html += `<button class="${i === p ? "active" : ""}" onclick="goCataloguePage(${i})">${i}</button>`;
+  html += `<button ${p === total ? "disabled" : ""} onclick="goCataloguePage(${p + 1})">Suivant »</button>`;
+  pag.innerHTML = html;
+}
+function goCataloguePage(p) { catState.page = p; loadCatalogueTab(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+
+function viewRecherche() {
+  document.getElementById("hero").innerHTML = "";
+  document.getElementById("hero").className = "";
+  document.body.classList.remove("welcome-body");
+  const q = getParam("q") || "";
+  document.getElementById("app").innerHTML = `
+    <main>
+      <div class="search-hero">
+        <div class="search-box search-box-lg">
+          <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+          <input id="searchInput" type="text" placeholder="Titres, animés, séries..." value="${q.replace(/"/g, "&quot;")}">
+        </div>
+      </div>
+      <h1 class="section-title" id="title">Recherche</h1>
+      <div id="searchApp"></div>
+    </main>`;
+
+  document.getElementById("searchInput").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      const val = e.target.value.trim();
+      if (val.length < 2) return;
+      nav(`recherche?q=${encodeURIComponent(val)}`);
+    }
+  });
+
+  loadSearch(q);
+}
+async function loadSearch(q) {
+  const titleEl = document.getElementById("title");
+  const app = document.getElementById("searchApp");
+  if (!q || q.length < 2) {
+    titleEl.textContent = "Recherche";
+    app.innerHTML = `<p style="color:var(--text-muted)">Tape au moins 2 caractères pour lancer la recherche.</p>`;
+    return;
+  }
+  titleEl.textContent = `Résultats pour « ${q} »`;
+  app.innerHTML = `<div class="loader">Chargement</div>`;
+  try {
+    const { data, meta } = await api("/search", { q });
+    if (!data.length) { app.innerHTML = `<p style="color:var(--text-muted)">Aucun résultat pour « ${q} ».</p>`; return; }
+    titleEl.textContent = `Résultats pour « ${q} » (${meta ? meta.count : data.length})`;
+    trackItems(data);
+    app.innerHTML = `<div class="grid">` + data.map(i => cardHtml(i, "grid")).join("") + `</div>`;
+    bindHearts(app);
+  } catch (e) {
+    app.innerHTML = `<div class="error-box"><div class="error-icon">${WARN_ICON}</div><h2>Une erreur est survenue</h2><p>${e.message}</p></div>`;
+  }
+}
+
+/* ----- Fiches détail (film / série / animé / drama) ----- */
+
+// BUGFIX : le bouton "Regarder" ne s'affichait plus dès que le champ
+// "first_episode_id" était absent de la réponse API (variable selon les
+// titres). On essaie plusieurs noms de champ possibles, et si aucun n'est
+// présent on route quand même vers le lecteur avec le "slug" : le lecteur
+// sait alors interroger l'endpoint "/servers" du titre directement.
+function resolvePlayId(obj) {
+  return obj.first_episode_id || obj.episode_id || obj.video_id || obj.play_id || null;
+}
+
+function detailChrome() { document.getElementById("hero").innerHTML = ""; document.getElementById("hero").className = ""; document.body.classList.remove("welcome-body"); }
+
+// Bannière "backdrop" pleine largeur façon Netflix, commune à toutes les
+// fiches (film, série, animé, K-drama, webtoon).
+function detailHeroHtml({ image, title, year, badge, tags, synopsis, playHref, playLabel }) {
+  return `
+    <div class="dhero" style="background-image:url('${image || ""}')">
+      <div class="dhero-content">
+        <h1>${title}</h1>
+        <div class="dhero-meta">
+          ${year ? `<span class="year">${year}</span>` : ""}
+          ${badge ? `<span class="badge ${badge.cls}">${badge.label}</span>` : ""}
+          ${(tags || []).map(t => `<span class="tag">${t}</span>`).join("")}
+        </div>
+        <p class="dhero-synopsis">${synopsis || "Pas de synopsis disponible."}</p>
+        <div class="dhero-actions">
+          ${playHref ? `<a class="btn" onclick="nav('${playHref}')">▶ ${playLabel || "Regarder"}</a>` : ""}
+        </div>
+      </div>
+    </div>`;
+}
+
+const PLAY_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4V8z" fill="currentColor" stroke="none"/></svg>`;
+
+// Liste d'épisodes groupés par saison, avec sélecteur de saison façon
+// Netflix (masqué automatiquement s'il n'y a qu'une seule saison — ce qui
+// couvre aussi les animés/K-dramas sans découpage en saisons).
+function episodesBySeasonHtml(episodes, hrefBuilder) {
+  episodes = episodes || [];
+  if (!episodes.length) return `<p style="color:var(--text-muted)">Aucun épisode disponible.</p>`;
+  const seasons = {};
+  episodes.forEach(ep => { const n = ep.season || "1"; (seasons[n] = seasons[n] || []).push(ep); });
+  const seasonKeys = Object.keys(seasons).sort((a, b) => +a - +b);
+  const uid = "eplist_" + Math.random().toString(36).slice(2, 8);
+
+  const renderList = (key) => `<div class="ep-rows">${(seasons[key] || []).map(ep => `
+    <a class="ep-row" onclick="nav('${hrefBuilder(ep)}')">
+      <div class="ep-num">${ep.number ?? "•"}</div>
+      <div class="ep-info">
+        <div class="ep-title">${ep.title || "Épisode " + ep.number}</div>
+        ${ep.version ? `<div class="ep-sub">${ep.version}</div>` : ""}
+      </div>
+      <div class="ep-play">${PLAY_ICON_SVG}</div>
+    </a>`).join("")}</div>`;
+
+  window[uid] = renderList;
+  const selectHtml = seasonKeys.length > 1 ? `
+    <div class="season-select-wrap">
+      <select class="season-select" onchange="document.getElementById('${uid}_list').innerHTML = window['${uid}'](this.value)">
+        ${seasonKeys.map(k => `<option value="${k}">Saison ${k}</option>`).join("")}
+      </select>
+    </div>` : "";
+
+  return `
+    <div class="detail-body-head">
+      <h1 class="section-title" style="margin-bottom:0">Épisodes (${episodes.length})</h1>
+      ${selectHtml}
+    </div>
+    <div id="${uid}_list">${renderList(seasonKeys[0])}</div>`;
+}
+
+function chaptersListHtml(chapters, slug) {
+  chapters = chapters || [];
+  if (!chapters.length) return `<p style="color:var(--text-muted)">Aucun chapitre disponible.</p>`;
+  return `<div class="ep-rows">` + chapters.slice().reverse().map(ch => `
+    <a class="ep-row" onclick="nav('webtoon?slug=${encodeURIComponent(slug)}&chapter=${encodeURIComponent(ch.chapter_id)}')">
+      <div class="ep-num">${ch.number ?? "•"}</div>
+      <div class="ep-info"><div class="ep-title">${ch.title || "Chapitre " + ch.number}</div></div>
+      <div class="ep-play">${PLAY_ICON_SVG}</div>
+    </a>`).join("") + `</div>`;
+}
+
+async function viewFilm() {
+  detailChrome();
+  const app = document.getElementById("app");
+  app.innerHTML = `<main><div class="loader">Chargement</div></main>`;
+  const slug = getSlug();
+  if (!slug) { showError("Aucun film sélectionné. Retourne à l'accueil pour en choisir un."); return; }
+  try {
+    const { data: m } = await api(`/movies/${slug}`);
+    if (m.type === "series") { nav(`serie?slug=${slug}`); return; }
+    document.title = `${m.title} — PRINCE MOVIE`;
+    const playId = resolvePlayId(m);
+    const playHref = `lecteur?${playId ? `id=${encodeURIComponent(playId)}&` : ""}type=movies&slug=${encodeURIComponent(m.slug)}&title=${encodeURIComponent(m.title)}`;
+    document.getElementById("app").innerHTML = `<main>
+      ${detailHeroHtml({
+        image: m.image, title: m.title, year: m.year,
+        badge: m.version ? { cls: cardBadgeClass(m.version), label: m.version } : null,
+        tags: [...(m.status ? [m.status] : []), ...(m.genres || [])],
+        synopsis: m.synopsis, playHref, playLabel: "Regarder maintenant",
+      })}
+      ${m.related && m.related.length ? `
+        <div class="detail-body">
+          <h1 class="section-title">Titres similaires</h1>
+          <div class="similar-row">
+            ${m.related.map(r => `
+              <div class="row-card" title="${r.title}">
+                <a onclick="nav('${r.type === "series" ? "serie" : "film"}?slug=${encodeURIComponent(r.slug)}')">
+                  <img src="${r.image}" alt="${r.title}" loading="lazy">
+                  <span class="badge ${cardBadgeClass(r.version)} row-card-badge">${r.version || ""}</span>
+                </a>
+              </div>`).join("")}
+          </div>
+        </div>` : ""}
+    </main>`;
+  } catch (e) {
+    console.error("Erreur :", e);
+    if (e.code === "wrong_type") nav(`serie?slug=${slug}`);
+    else showError(e.message);
+  }
+}
+
+async function viewSerie() {
+  detailChrome();
+  document.getElementById("app").innerHTML = `<main><div class="loader">Chargement</div></main>`;
+  const slug = getSlug();
+  if (!slug) { showError("Aucune série sélectionnée."); return; }
+  try {
+    const { data: s } = await api(`/series/${slug}`);
+    if (s.type === "movie") { nav(`film?slug=${slug}`); return; }
+    document.title = `${s.title} — PRINCE MOVIE`;
+    const playId = resolvePlayId(s);
+    const playHref = `lecteur?${playId ? `id=${encodeURIComponent(playId)}&` : ""}type=series&slug=${encodeURIComponent(s.slug)}&title=${encodeURIComponent(s.title)}`;
+    document.getElementById("app").innerHTML = `<main>
+      ${detailHeroHtml({
+        image: s.image, title: s.title, year: s.year,
+        badge: s.version ? { cls: cardBadgeClass(s.version), label: s.version } : null,
+        tags: [...(s.status ? [s.status] : []), ...(s.genres || [])],
+        synopsis: s.synopsis, playHref, playLabel: "Voir l'épisode 1",
+      })}
+      <div class="detail-body">
+        ${episodesBySeasonHtml(s.episodes, ep => `lecteur?id=${encodeURIComponent(ep.episode_id)}&type=series&slug=${encodeURIComponent(s.slug)}&title=${encodeURIComponent(s.title + " - S" + ep.season + "E" + ep.number)}`)}
+      </div>
+    </main>`;
+  } catch (e) {
+    if (e.code === "wrong_type") nav(`film?slug=${slug}`);
+    else showError(e.message);
+  }
+}
+
+async function viewAnime() {
+  detailChrome();
+  document.getElementById("app").innerHTML = `<main><div class="loader">Chargement</div></main>`;
+  const slug = getSlug();
+  if (!slug) { showError("Aucun animé sélectionné."); return; }
+  try {
+    const { data: a } = await api(`/anime/${slug}`);
+    document.title = `${a.title} — PRINCE MOVIE`;
+    const animePlayHref = a.first_episode_id ? `lecteur?type=anime&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(a.first_episode_id)}&title=${encodeURIComponent(a.title)}` : null;
+    document.getElementById("app").innerHTML = `<main>
+      ${detailHeroHtml({
+        image: a.image, title: a.title, year: a.year,
+        badge: a.version ? { cls: cardBadgeClass(a.version), label: a.version } : null,
+        tags: [...(a.status ? [a.status] : []), ...(a.genres || [])],
+        synopsis: a.synopsis, playHref: animePlayHref, playLabel: "Voir l'épisode 1",
+      })}
+      <div class="detail-body">
+        ${episodesBySeasonHtml(a.episodes, ep => `lecteur?type=anime&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(ep.episode_id)}&title=${encodeURIComponent(a.title + " - " + (ep.title || ep.number))}`)}
+      </div>
+    </main>`;
+  } catch (e) { showError(e.message); }
+}
+
+async function viewDrama() {
+  detailChrome();
+  document.getElementById("app").innerHTML = `<main><div class="loader">Chargement</div></main>`;
+  const slug = getSlug();
+  if (!slug) { showError("Aucun K-Drama sélectionné."); return; }
+  try {
+    const { data: d } = await api(`/dramas/${slug}`);
+    document.title = `${d.title} — PRINCE MOVIE`;
+    const dramaPlayHref = d.first_episode_id ? `lecteur?type=dramas&slug=${encodeURIComponent(d.slug)}&episode=${encodeURIComponent(d.first_episode_id)}&title=${encodeURIComponent(d.title)}` : null;
+    document.getElementById("app").innerHTML = `<main>
+      ${detailHeroHtml({
+        image: d.image, title: d.title, year: d.year,
+        badge: d.version ? { cls: cardBadgeClass(d.version), label: d.version } : null,
+        tags: [...(d.country ? ["🌍 " + d.country] : []), ...(d.status ? [d.status] : []), ...(d.genres || [])],
+        synopsis: d.synopsis, playHref: dramaPlayHref, playLabel: "Voir l'épisode 1",
+      })}
+      <div class="detail-body">
+        ${episodesBySeasonHtml(d.episodes, ep => `lecteur?type=dramas&slug=${encodeURIComponent(d.slug)}&episode=${encodeURIComponent(ep.episode_id)}&title=${encodeURIComponent(d.title + " - " + (ep.title || ep.number))}`)}
+      </div>
+    </main>`;
+  } catch (e) { showError(e.message); }
+}
+
+/* ----- Webtoon (liste des chapitres + lecture) ----- */
+async function viewWebtoon() {
+  detailChrome();
+  document.getElementById("app").innerHTML = `<main><div class="loader">Chargement</div></main>`;
+  const slug = getSlug();
+  const chapterParam = getParam("chapter");
+  if (!slug) { showError("Aucun webtoon sélectionné."); return; }
+  if (chapterParam) loadWebtoonChapter(slug, chapterParam);
+  else loadWebtoonList(slug);
+}
+async function loadWebtoonList(slug) {
+  try {
+    const { data: w } = await api(`/webtoons/${slug}`);
+    document.title = `${w.title} — PRINCE MOVIE`;
+    const webtoonPlayHref = w.first_chapter_id ? `webtoon?slug=${encodeURIComponent(w.slug)}&chapter=${encodeURIComponent(w.first_chapter_id)}` : null;
+    document.getElementById("app").innerHTML = `<main>
+      ${detailHeroHtml({
+        image: w.image, title: w.title, year: w.year,
+        badge: { cls: "", label: w.version || "VF" },
+        tags: [...(w.status ? [w.status] : []), ...(w.genres || [])],
+        synopsis: w.synopsis, playHref: webtoonPlayHref, playLabel: "Lire le chapitre 1",
+      })}
+      <div class="detail-body">
+        <h1 class="section-title">Chapitres (${(w.chapters || []).length})</h1>
+        ${chaptersListHtml(w.chapters, w.slug)}
+      </div>
+    </main>`;
+  } catch (e) { showError(e.message); }
+}
+async function loadWebtoonChapter(slug, chapterId) {
+  // BUGFIX : les deux appels sont traités séparément (allSettled) — un
+  // souci sur l'un ne doit pas empêcher d'afficher l'autre, et on tente
+  // aussi bien "chapter" que "chapter_id" comme nom de paramètre.
+  const [metaResult, pagesResult] = await Promise.allSettled([
+    api(`/webtoons/${slug}`),
+    api(`/webtoons/${slug}/pages`, { chapter: chapterId }, { chapter_id: chapterId }),
+  ]);
+
+  if (metaResult.status !== "fulfilled") {
+    showError(metaResult.reason?.message || "Impossible de charger ce webtoon.");
+    return;
+  }
+  const w = metaResult.value.data;
+  const pages = pagesResult.status === "fulfilled" ? (pagesResult.value.data || []) : [];
+  document.title = `${w.title} — Chapitre — PRINCE MOVIE`;
+
+  const backBtns = `<div style="display:flex;gap:12px;justify-content:center;margin:24px 0;flex-wrap:wrap"><a class="btn" onclick="nav('webtoon?slug=${encodeURIComponent(slug)}')">← Retour aux chapitres</a></div>`;
+
+  document.getElementById("app").innerHTML = `<main>
+    <div style="max-width:900px;margin:0 auto;text-align:center">
+      <h1 style="margin-bottom:8px">${w.title}</h1>
+      <p style="color:#f5b400;margin-bottom:8px;font-weight:700">Chapitre ${chapterId}</p>
+      ${backBtns}
+      ${pages.length
+        ? `<div class="webtoon-reader">${pages.map(p => `<img src="${p.image}" alt="Page ${p.page}" loading="lazy" onerror="this.style.display='none'">`).join("")}</div>`
+        : `<div class="error-box"><div class="error-icon">${WARN_ICON}</div><h2>Ce chapitre est introuvable</h2><p>${pagesResult.reason?.message || "Aucune page n'a pu être chargée pour ce chapitre."}</p></div>`}
+      ${backBtns}
+    </div>
+  </main>`;
+}
+
+/* ----- Lecteur vidéo ----- */
+async function viewLecteur() {
+  detailChrome();
+  const id = getParam("id");
+  const type = getParam("type");
+  const slug = getParam("slug");
+  const episode = getParam("episode");
+  const title = getParam("title") || "Lecture";
+  document.title = `${title} — PRINCE MOVIE`;
+  document.getElementById("app").innerHTML = `<main>
+    <h1 class="section-title" id="lecteurTitle">${title}</h1>
+    <div class="player-wrap" id="player"><div class="loader" style="padding:200px 0">Chargement du lecteur</div></div>
+    <div class="servers-tabs" id="tabs"></div>
+    <p id="fallbackLink" style="text-align:center;margin-top:14px;font-size:14px;color:var(--text-muted)"></p>
+  </main>`;
+
+  let servers = [];
+  try {
+    let data;
+    if (type === "anime") {
+      ({ data } = await api(`/anime/${slug}/servers`, { episode }));
+    } else if (type === "dramas") {
+      ({ data } = await api(`/dramas/${slug}/servers`, { episode }));
+    } else if (id) {
+      // BUGFIX : si l'id d'épisode fourni échoue (mauvais champ côté fiche
+      // film/série), on retombe sur l'endpoint "/servers" du titre lui-même.
+      try {
+        ({ data } = await api(`/episodes/${id}/servers`));
+      } catch (e) {
+        if (slug && (type === "movies" || type === "series")) {
+          ({ data } = await api(`/${type}/${slug}/servers`));
+        } else {
+          throw e;
+        }
+      }
+    } else if (slug && (type === "movies" || type === "series")) {
+      ({ data } = await api(`/${type}/${slug}/servers`));
+    } else {
+      throw new Error("Aucun épisode spécifié.");
+    }
+
+    servers = data;
+    if (!servers || !servers.length) {
+      document.getElementById("player").innerHTML = `<div class="error-box"><p>Aucun serveur disponible.</p></div>`;
+      return;
+    }
+    renderServerTabs(servers);
+    switchServer(0, servers);
+  } catch (e) {
+    document.getElementById("player").innerHTML = `<div class="error-box"><h2>😕 Erreur</h2><p>${e.message}</p></div>`;
+  }
+}
+function renderServerTabs(servers) {
+  document.getElementById("tabs").innerHTML = servers.map((s, i) => `
+    <button class="server-btn" onclick="switchServer(${i}, window.__pmServers)">${s.server_name} <small>(${s.version})</small></button>`).join("");
+  window.__pmServers = servers;
+}
+function switchServer(i, servers) {
+  servers = servers || window.__pmServers;
+  document.querySelectorAll(".server-btn").forEach((b, idx) => b.classList.toggle("active", idx === i));
+  const originalLink = servers[i].server_link;
+  let link = originalLink;
+  if (location.protocol === "https:" && link.startsWith("http://")) link = "https://" + link.slice("http://".length);
+  // BUGFIX : certains hébergeurs de lecteurs affichent un mur "Checking
+  // your browser..." (anti-bot) qui ne se termine jamais quand la requête
+  // n'a pas de referrer, ou quand la sandbox de l'iframe l'empêche de se
+  // recharger / poser un cookie après la vérification. On desserre donc
+  // ces deux réglages tout en gardant l'iframe raisonnablement isolée.
+  document.getElementById("player").innerHTML = `<iframe src="${link}" allowfullscreen referrerpolicy="origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation allow-presentation"></iframe>`;
+  document.getElementById("fallbackLink").innerHTML =
+    `Le lecteur ne s'affiche pas ? <a href="${originalLink}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:700">Ouvrir dans un nouvel onglet</a>`;
+}
+
+/* ----- Ma Liste ----- */
+function viewMaliste() {
+  detailChrome();
+  const app = document.getElementById("app");
+  app.innerHTML = `<main><h1 class="section-title">Ma Liste</h1><div id="mlApp"></div></main>`;
+  renderMaliste();
+}
+function renderMaliste() {
+  const app = document.getElementById("mlApp");
+  const list = getMyList();
+  if (!list.length) {
+    app.innerHTML = `<div class="error-box"><h2>♡ Liste vide</h2><p>Appuie sur le cœur d'un film ou d'une série pour l'ajouter ici.</p><a class="btn" onclick="nav('accueil')">Parcourir le catalogue</a></div>`;
+    return;
+  }
+  trackItems(list);
+  app.innerHTML = `<div class="grid">` + list.map(item => `
+    <div class="card" title="${item.title}">
+      <button type="button" class="mylist-heart active" data-slug="${item.slug}" aria-label="Retirer de Ma Liste">♥</button>
+      <a onclick="nav('${detailRoute(item)}?slug=${encodeURIComponent(item.slug)}')">
+        <img src="${item.image}" alt="${item.title}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22300%22%3E%3Crect fill=%22%23222%22 width=%22200%22 height=%22300%22/%3E%3C/svg%3E'">
+        <span class="badge ${cardBadgeClass(item.version)} row-card-badge">${item.version || ""}</span>
+      </a>
+    </div>`).join("") + `</div>`;
+  app.querySelectorAll(".mylist-heart").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const item = list.find(i => i.slug === btn.dataset.slug);
+      if (!item) return;
+      toggleMyList(item);
+      renderMaliste();
+    });
+  });
+}
+
+/* ----- Paramètres ----- */
+function viewParametres() {
+  detailChrome();
+  const user = getCurrentUser();
+  const app = document.getElementById("app");
+  app.innerHTML = `<main style="max-width:700px; margin:0 auto; padding:30px 16px;">
+    <h1 class="section-title">Paramètres du compte</h1>
+    <div id="guard"></div>
+    <div id="settingsContent" style="display:none;">
+      <div class="settings-section"><h2>Profil</h2>
+        <form id="profileForm">
+          <div class="field-row">
+            <div class="field"><label for="prenom">Prénom</label><input id="prenom" type="text"></div>
+            <div class="field"><label for="nom">Nom</label><input id="nom" type="text"></div>
+          </div>
+          <div class="field"><label for="email">Adresse email</label><input id="email" type="email"></div>
+          <div class="field"><label for="telephone">Numéro de téléphone</label><input id="telephone" type="tel"></div>
+          <button type="submit" class="btn">Enregistrer</button>
+          <div class="save-confirm" id="profileConfirm">✓ Profil mis à jour</div>
+        </form>
+      </div>
+      <div class="settings-section"><h2>Sécurité</h2>
+        <form id="passwordForm">
+          <div class="field" id="f-newpass"><label for="newpass">Nouveau mot de passe</label><input id="newpass" type="password" placeholder="8 caractères minimum"><div class="field-error">8 caractères minimum.</div></div>
+          <div class="field" id="f-newpass2"><label for="newpass2">Confirmer le nouveau mot de passe</label><input id="newpass2" type="password"><div class="field-error">Les mots de passe ne correspondent pas.</div></div>
+          <button type="submit" class="btn">Changer le mot de passe</button>
+          <div class="save-confirm" id="passwordConfirm">✓ Mot de passe changé</div>
+        </form>
+      </div>
+      <div class="settings-section"><h2>Préférences</h2>
+        <div class="toggle-row"><div class="label">Lecture automatique<small>Lance l'épisode suivant automatiquement</small></div><label class="switch"><input type="checkbox" id="prefAutoplay"><span class="slider"></span></label></div>
+        <div class="toggle-row"><div class="label">Notifications<small>Nouveautés et épisodes ajoutés</small></div><label class="switch"><input type="checkbox" id="prefNotif"><span class="slider"></span></label></div>
+        <div class="toggle-row"><div class="label">Sous-titres par défaut<small>Afficher les sous-titres quand disponibles</small></div><label class="switch"><input type="checkbox" id="prefSubs"><span class="slider"></span></label></div>
+      </div>
+      <div class="settings-section"><h2>Compte</h2>
+        <button type="button" class="btn-outline" id="logoutBtn" style="color:var(--accent); background:rgba(226,38,28,.12);">Se déconnecter</button>
+      </div>
+    </div>
+  </main>`;
+
+  if (!user || !isLoggedIn()) {
+    document.getElementById("guard").innerHTML = `<div class="notice-banner">Tu dois être connecté pour accéder aux paramètres. <a onclick="nav('connexion')" style="color:var(--accent); font-weight:700;">Se connecter</a></div>`;
+    return;
+  }
+  document.getElementById("settingsContent").style.display = "block";
+  document.getElementById("prenom").value = user.prenom || "";
+  document.getElementById("nom").value = user.nom || "";
+  document.getElementById("email").value = user.email || "";
+  document.getElementById("telephone").value = user.telephone || "";
+  const prefs = JSON.parse(localStorage.getItem("pm_prefs") || "{}");
+  document.getElementById("prefAutoplay").checked = !!prefs.autoplay;
+  document.getElementById("prefNotif").checked = !!prefs.notif;
+  document.getElementById("prefSubs").checked = !!prefs.subs;
+
+  document.getElementById("profileForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    updateUser({
+      prenom: document.getElementById("prenom").value.trim(),
+      nom: document.getElementById("nom").value.trim(),
+      email: document.getElementById("email").value.trim(),
+      telephone: document.getElementById("telephone").value.trim(),
+    });
+    renderChrome();
+    const c = document.getElementById("profileConfirm");
+    c.style.display = "block"; setTimeout(() => c.style.display = "none", 2500);
+  });
+  document.getElementById("passwordForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const p1 = document.getElementById("newpass").value, p2 = document.getElementById("newpass2").value;
+    const okLen = p1.length >= 8, okMatch = p1 === p2 && p2.length > 0;
+    document.getElementById("f-newpass").classList.toggle("invalid", !okLen);
+    document.getElementById("f-newpass2").classList.toggle("invalid", !okMatch);
+    if (!okLen || !okMatch) return;
+    updateUser({ password: p1 });
+    document.getElementById("passwordForm").reset();
+    const c = document.getElementById("passwordConfirm");
+    c.style.display = "block"; setTimeout(() => c.style.display = "none", 2500);
+  });
+  ["prefAutoplay", "prefNotif", "prefSubs"].forEach(id => {
+    document.getElementById(id).addEventListener("change", () => {
+      localStorage.setItem("pm_prefs", JSON.stringify({
+        autoplay: document.getElementById("prefAutoplay").checked,
+        notif: document.getElementById("prefNotif").checked,
+        subs: document.getElementById("prefSubs").checked,
+      }));
+    });
+  });
+  document.getElementById("logoutBtn").addEventListener("click", logoutUser);
+}
+
+/* =========================================================
+   ROUTEUR PRINCIPAL
+   ========================================================= */
+const ROUTES = {
+  index: viewIndex, connexion: viewConnexion, inscription: viewInscription,
+  accueil: viewAccueil, catalogue: viewCatalogue, recherche: viewRecherche,
+  film: viewFilm, serie: viewSerie, anime: viewAnime, drama: viewDrama,
+  webtoon: viewWebtoon, lecteur: viewLecteur, maliste: viewMaliste, parametres: viewParametres,
+};
+
+function renderApp() {
+  const { path } = currentRoute();
+  window.scrollTo({ top: 0 });
+
+  // Garde d'accès : les routes non publiques nécessitent d'être connecté.
+  if (!PUBLIC_ROUTES.includes(path) && !(getCurrentUser() && isLoggedIn())) {
+    if (location.hash !== "#/index") { location.hash = "#/index"; return; }
+  }
+  if (path === "index" && getCurrentUser() && isLoggedIn()) {
+    if (location.hash !== "#/accueil") { location.hash = "#/accueil"; return; }
+  }
+
+  renderChrome();
+  const view = ROUTES[path] || viewAccueil;
+  // Filet de sécurité : si une vue lève une erreur inattendue de façon
+  // synchrone (donnée manquante, etc.), on affiche un message clair au
+  // lieu de laisser la page blanche ("planter").
+  try {
+    const result = view();
+    if (result && typeof result.catch === "function") {
+      result.catch(err => {
+        console.error("Erreur de vue :", err);
+        showError(err && err.message ? err.message : "Une erreur inattendue est survenue.");
+      });
+    }
+  } catch (err) {
+    console.error("Erreur de vue :", err);
+    showError(err && err.message ? err.message : "Une erreur inattendue est survenue.");
+  }
+}
+
+window.addEventListener("error", (e) => {
+  console.error("Erreur JS non gérée :", e.error || e.message);
+});
+window.addEventListener("hashchange", renderApp);
+window.addEventListener("DOMContentLoaded", renderApp);
+</script>
+</body>
+</html>
