@@ -299,20 +299,22 @@ h1.section-title { font-size: 24px; margin-bottom: 20px; border-left: 4px solid 
    ========================================================= */
 const API_BASE = "http://51.75.118.170:20041/api/v1";
 
-// Ton proxy CORS personnel (Cloudflare Worker), à créer en suivant les
-// instructions dans le fichier cloudflare-worker.js fourni à côté.
-// Laisse "" tant que tu ne l'as pas encore créé — le site continuera de
-// fonctionner avec les proxys publics ci-dessous, juste moins fiablement.
-// Une fois créé, colle ton URL ici, par ex. :
-//   const MY_PROXY_URL = "https://prince-movie-proxy.tonpseudo.workers.dev/?url=";
-const MY_PROXY_URL = "";
+// Proxy interne, servi par ton propre projet Vercel (fonction serverless
+// api/proxy.js fournie à côté — voir ce fichier pour les instructions
+// d'installation). Comme il tourne sur ton domaine et côté serveur, il
+// évite à la fois le blocage HTTPS→HTTP du navigateur et la lenteur des
+// proxys publics saturés. "/api/proxy?url=" est un chemin RELATIF : il
+// fonctionne automatiquement une fois déployé sur Vercel, sans rien à
+// configurer de plus ici.
+const MY_PROXY_URL = "/api/proxy?url=";
 
 const PROXIES = [
-  // BUGFIX : le proxy personnel (s'il est configuré) passe toujours en
-  // premier — il n'est utilisé que par ce site, donc bien plus fiable que
-  // les proxys publics ci-dessous qui sont partagés par des milliers de
-  // sites et souvent saturés/rate-limités.
-  ...(MY_PROXY_URL ? [MY_PROXY_URL] : []),
+  // BUGFIX : le proxy interne (s'il répond) passe toujours en premier — il
+  // n'est utilisé que par ce site, donc bien plus rapide et fiable que les
+  // proxys publics ci-dessous, partagés par des milliers de sites et
+  // souvent saturés/rate-limités. Ces derniers restent en repli si jamais
+  // le proxy interne n'est pas déployé (ex: fichier ouvert en local).
+  MY_PROXY_URL,
   "https://api.allorigins.win/raw?url=",
   "https://corsproxy.io/?url=",
   "https://api.codetabs.com/v1/proxy?quest=",
