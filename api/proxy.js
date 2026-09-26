@@ -65,4 +65,4 @@ export default async function handler(req, res) {
   } catch (err) {
     res.status(502).json({ success: false, error: { message: "Impossible de contacter l'API source (délai dépassé ou serveur injoignable)." } });
   }
-}
+                }
