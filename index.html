@@ -780,6 +780,8 @@ body.welcome-body { background: #07070a; overflow-x: hidden; }
   background: rgba(255,92,92,.08); border: 1px solid rgba(255,92,92,.28); }
 .admin-del:hover { background: rgba(255,92,92,.18); }
 .admin-empty { text-align: center; color: var(--text-muted); padding: 30px 0; }
+#adminOpenBtn { display: inline-flex; align-items: center; gap: 8px; }
+#adminOpenBtn svg { width: 17px; height: 17px; flex-shrink: 0; color: var(--gold); }
 @media (max-width: 560px) { .admin-panel { padding: 24px 16px; border-radius: 20px; } .admin-user { flex-wrap: wrap; } .admin-del { width: 100%; } }
 </style>
 </head>
@@ -1060,7 +1062,13 @@ async function usersApi(payload) {
   let json = null;
   try { json = await r.json(); } catch (e) { /* réponse non JSON */ }
   if (!r.ok || !json || !json.ok) {
-    const err = new Error((json && json.error) || `Erreur serveur (${r.status})`);
+    let msg = json && json.error;
+    if (!msg) {
+      if (r.status === 404) msg = "API introuvable (404) : le fichier api/users.js n'est pas déployé sur Vercel. Place-le dans le dossier api/ puis redéploie.";
+      else if (r.status === 405) msg = "L'API /api/users n'a pas répondu correctement (405). Redéploie le site sur Vercel.";
+      else msg = `Erreur serveur (${r.status})`;
+    }
+    const err = new Error(msg);
     err.status = r.status;
     throw err;
   }
@@ -2455,7 +2463,7 @@ function viewParametres() {
       </div>
       <div class="settings-section admin-section"><h2>Administration</h2>
         <div class="toggle-row"><div class="label">Utilisateurs du site<small>Réservé au propriétaire · protégé par un code</small></div>
-          <button type="button" class="btn-outline" id="adminOpenBtn">🔒 Ouvrir</button></div>
+          <button type="button" class="btn-outline" id="adminOpenBtn">${AUTH_ICONS.lock}<span>Ouvrir</span></button></div>
       </div>
       <div class="settings-section"><h2>Compte</h2>
         <button type="button" class="btn-outline" id="logoutBtn" style="color:var(--accent); background:rgba(226,38,28,.12);">Se déconnecter</button>
