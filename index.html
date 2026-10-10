@@ -2305,7 +2305,7 @@ async function loadSimilar(type, slug) {
 }
 function renderServerTabs(servers) {
   document.getElementById("tabs").innerHTML = servers.map((s, i) => `
-    <button type="button" class="server-btn" onclick="switchServer(${i}, window.__pmServers)">${s.server_name} <small>(${s.version})</small></button>`).join("");
+    <button type="button" class="server-btn" onclick="switchServer(${i}, window.__pmServers)">${s.server_name || "Serveur " + (i + 1)}${s.version ? ` <small>(${s.version})</small>` : ""}</button>`).join("");
   window.__pmServers = servers;
 }
 const MEDIA_RE = /\.(mp4|webm|m3u8)(\?|#|$)/i;
@@ -2320,6 +2320,13 @@ function loadHlsLib() {
     document.head.appendChild(sc);
   });
 }
+function pmIframeFallback(i) {
+  const servers = window.__pmServers || [];
+  const l = servers[i] && servers[i].server_link;
+  if (!l) return;
+  const safe = String(l).replace(/"/g, "&quot;");
+  document.getElementById("player").innerHTML = `<iframe src="${safe}" allowfullscreen allow="autoplay; fullscreen; picture-in-picture" referrerpolicy="no-referrer"></iframe>`;
+}
 function switchServer(i, servers, newMode) {
   servers = servers || window.__pmServers;
   if (typeof newMode === "number") window.__pmMode = newMode;
@@ -2328,14 +2335,35 @@ function switchServer(i, servers, newMode) {
   const originalLink = servers[i].server_link;
   let link = originalLink;
   if (location.protocol === "https:" && link.startsWith("http://")) link = "https://" + link.slice("http://".length);
+  // CORRECTIF : si la vidéo est hébergée sur le même serveur que l'API (http
+  // uniquement, pas de https), la conversion en https casse le lien. On la
+  // fait alors passer par le proxy du site (même domaine, donc en https).
+  try {
+    const apiOrigin = new URL(API_BASE).origin;
+    if (location.protocol === "https:" && new URL(originalLink).origin === apiOrigin && !/\.m3u8(\?|#|$)/i.test(originalLink)) {
+      link = MY_PROXY_URL + encodeURIComponent(originalLink);
+    }
+  } catch (e) {}
   const player = document.getElementById("player");
   const safeLink = String(link).replace(/"/g, "&quot;");
 
-  if (MEDIA_RE.test(link)) {
+  if (MEDIA_RE.test(originalLink)) {
     // Lien direct vers un fichier vidéo : un <video> natif, pas une iframe.
     player.innerHTML = `<video id="pmVideo" controls playsinline preload="metadata" style="width:100%;height:100%;background:#000"></video>`;
     const video = document.getElementById("pmVideo");
-    const failed = () => { player.innerHTML = `<div class="error-box"><p>Cette vidéo ne peut pas être lue ici. Essaie un autre serveur ou ouvre-la dans un nouvel onglet.</p></div>`; };
+    // CORRECTIF : on essaie d'abord le lien tel que converti en https, puis le
+    // lien d'origine (certains hébergeurs ne servent PAS leurs vidéos en https,
+    // et la conversion automatique les cassait). En dernier recours, on
+    // affiche l'hôte + le code d'erreur et un bouton de lecture alternative.
+    const candidates = [link];
+    if (originalLink && originalLink !== link) candidates.push(originalLink);
+    let candIdx = 0;
+    let videoHost = "?";
+    try { videoHost = new URL(link).hostname; } catch (e) {}
+    const failed = () => {
+      const code = video.error ? video.error.code : "?";
+      player.innerHTML = `<div class="error-box"><p>Cette vidéo ne peut pas être lue ici.</p><p style="font-size:12px;opacity:.7">Hôte : ${escHtml(videoHost)} · code ${code}</p><p style="margin-top:10px"><a class="btn" onclick="pmIframeFallback(${i})">Essayer le lecteur du navigateur</a></p></div>`;
+    };
     if (/\.m3u8(\?|#|$)/i.test(link) && !video.canPlayType("application/vnd.apple.mpegurl")) {
       loadHlsLib().then((Hls) => {
         if (!Hls || !Hls.isSupported()) return failed();
@@ -2344,8 +2372,11 @@ function switchServer(i, servers, newMode) {
         hls.on(Hls.Events.ERROR, (e, d) => { if (d && d.fatal) failed(); });
       }).catch(failed);
     } else {
-      video.src = link;
-      video.addEventListener("error", failed, { once: true });
+      video.src = candidates[0];
+      video.addEventListener("error", () => {
+        if (candIdx < candidates.length - 1) { candIdx++; video.src = candidates[candIdx]; video.load(); }
+        else failed();
+      });
     }
   } else {
     // Mode protégé (par défaut) : bac à sable sans popups => pas de pubs/redirections.
