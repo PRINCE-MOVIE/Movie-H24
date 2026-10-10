@@ -13,8 +13,6 @@
  *    espaces ou caractères encodés).
  *  - Vérification de l'origine par URL parsée (et non par simple préfixe).
  */
-import { Readable } from "node:stream";
-
 const TARGET_ORIGIN = "http://51.75.118.170:20041";
 
 export default async function handler(req, res) {
@@ -44,7 +42,8 @@ export default async function handler(req, res) {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);   // attente de la réponse uniquement
-  req.on("close", () => controller.abort());
+  // on n'abandonne la requête amont que si le client coupe AVANT la fin de la réponse
+  res.on("close", () => { if (!res.writableEnded) controller.abort(); });
   try {
     const headers = { "Accept": "*/*" };
     if (req.headers.range) headers["Range"] = req.headers.range;
@@ -64,7 +63,15 @@ export default async function handler(req, res) {
       res.removeHeader("content-length");
       res.send(await upstream.text());
     } else if (upstream.body) {
-      Readable.fromWeb(upstream.body).on("error", () => res.end()).pipe(res);
+      const reader = upstream.body.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!res.write(Buffer.from(value))) await new Promise(r => res.once("drain", r));
+        }
+      } catch (e) { /* client parti ou flux coupé */ }
+      res.end();
     } else {
       res.end();
     }
