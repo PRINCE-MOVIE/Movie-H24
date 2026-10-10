@@ -759,6 +759,14 @@ body.auth-body::after { filter: none !important; animation: none !important;
   header { background: rgba(10,10,10,.96) !important; }
   .bottom-nav { background: rgba(12,12,12,.97) !important; }
 }
+
+/* Lecteur : bouton mode compatibilité + page de diagnostic */
+.compat-btn { display: inline-block; padding: 7px 14px; margin: 4px 6px; border-radius: 999px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; color: #fff; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.2); }
+.compat-btn:hover { border-color: var(--accent); }
+.diag-out { display: flex; flex-direction: column; gap: 8px; }
+.diag-row { padding: 12px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.5; word-break: break-word; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+.diag-row.ok { border-color: rgba(60,200,120,.4); }
+.diag-row.ko { border-color: rgba(255,92,92,.5); color: #ffb4b4; }
 </style>
 </head>
 <body>
@@ -798,6 +806,9 @@ body.auth-body::after { filter: none !important; animation: none !important;
 /* =========================================================
    API — cœur de communication avec le backend PRINCE MOVIE
    ========================================================= */
+// Anti-pubs : la page n'ouvre jamais de fenêtre publicitaire par script.
+window.open = function (url) { console.warn("Pop-up bloqué :", url); return null; };
+
 const API_BASE = "http://51.75.118.170:20041/api/v1";
 
 // Proxy interne, servi par ton propre projet Vercel (fonction serverless
@@ -940,13 +951,26 @@ async function apiRaw(path, params = {}) {
   })());
   attempts.push(directAttempt);
 
+  // Si l'API elle-même répond par une erreur "métier" (not_found, bad_request…,
+  // reconnaissable à son code), inutile d'attendre que toutes les autres sources
+  // échouent (jusqu'à 9 s) : on remonte l'erreur tout de suite. Les erreurs de
+  // proxy/réseau (sans code) ne comptent pas : on continue d'attendre les autres.
+  let rejectDefinitive;
+  const definitive = new Promise((_, rej) => { rejectDefinitive = rej; });
+  definitive.catch(() => {});
+  const guarded = attempts.map(p => p.catch((e) => {
+    if (e && e.code && e.code !== "source_unavailable") rejectDefinitive(e);
+    throw e;
+  }));
   try {
-    const json = await Promise.any(attempts);
+    const json = await Promise.race([Promise.any(guarded), definitive]);
     controllers.forEach(c => c.abort());
     directController.abort();
     cacheWrite(cacheKey, json);
     return json;
   } catch (aggregateErr) {
+    controllers.forEach(c => c.abort());
+    directController.abort();
     // Dernier filet : si on a déjà réussi à charger cette même ressource
     // par le passé (même après la fenêtre de cache normale), on la réutilise
     // plutôt que de faire disparaître la section à l'écran.
@@ -972,6 +996,9 @@ async function apiRaw(path, params = {}) {
 const LIST_PATH_RE = /^\/(movies|series|anime|hentai|dramas|search)$/;
 function dedupeResult(path, json) {
   if (!LIST_PATH_RE.test(path) || !json || !Array.isArray(json.data)) return json;
+  // Quel que soit le champ "type" renvoyé par l'API (parfois "anime"), un titre
+  // venant de /hentai doit ouvrir la fiche /hentai, sinon la lecture échoue.
+  if (path === "/hentai") json.data.forEach(it => { if (it) it.type = "hentai"; });
   const seen = new Set();
   json.data = json.data.filter(it => {
     const key = it && it.slug;
@@ -1001,7 +1028,7 @@ async function api(path, params = {}, altParams = null) {
 const AUTH_KEY = "pm_user";
 const SESSION_KEY = "pm_session";
 const MYLIST_KEY = "pm_mylist";
-const PUBLIC_ROUTES = ["index", "inscription", "connexion"];
+const PUBLIC_ROUTES = ["index", "inscription", "connexion", "diagnostic"];
 
 function getCurrentUser() {
   try { const raw = localStorage.getItem(AUTH_KEY); return raw ? JSON.parse(raw) : null; }
@@ -2079,9 +2106,16 @@ async function viewHentai() {
   const slug = getSlug();
   if (!slug) { showError("Aucun titre sélectionné."); return; }
   try {
-    const { data: a } = await api(`/hentai/${slug}`);
+    let a;
+    try { ({ data: a } = await api(`/hentai/${slug}`)); }
+    catch (e1) {
+      try { ({ data: a } = await api(`/anime/${slug}`)); }   // repli : certaines versions de l'API servent ces titres via /anime
+      catch (e2) { throw e1; }
+    }
     document.title = `${a.title} — PRINCE MOVIE`;
-    const animePlayHref = a.first_episode_id ? `lecteur?type=hentai&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(a.first_episode_id)}&title=${encodeURIComponent(a.title)}` : null;
+    const hEpisodes = normalizeEpisodesData(a);
+    const hFirstId = a.first_episode_id || epIdOf(hEpisodes[0]);
+    const animePlayHref = hFirstId ? `lecteur?type=hentai&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(hFirstId)}&title=${encodeURIComponent(a.title)}` : null;
     document.getElementById("app").innerHTML = `<main>
       ${detailHeroHtml({
         image: a.image, title: a.title, year: a.year,
@@ -2090,7 +2124,7 @@ async function viewHentai() {
         synopsis: a.synopsis, playHref: animePlayHref, playLabel: "Voir l'épisode 1",
       })}
       <div class="detail-body">
-        ${episodesBySeasonHtml(normalizeEpisodesData(a), ep => `lecteur?type=hentai&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(ep.episode_id)}&title=${encodeURIComponent(a.title + " - " + (ep.title || ep.number))}`)}
+        ${episodesBySeasonHtml(hEpisodes, ep => `lecteur?type=hentai&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(epIdOf(ep))}&title=${encodeURIComponent(a.title + " - " + (ep.title || ep.number))}`)}
       </div>
     </main>`;
     loadBackdrop(a.image);
@@ -2139,6 +2173,29 @@ function imgFallback(img) {
   img.src = PROXIES[tried] + encodeURIComponent(orig);
 }
 /* ----- Lecteur vidéo ----- */
+// Identifiant d'épisode : selon les titres, l'API le nomme episode_id, id ou slug.
+function epIdOf(ep) { return ep ? (ep.episode_id ?? ep.id ?? ep.slug ?? "") : ""; }
+
+// Liste des serveurs d'un épisode. Certaines versions de l'API attendent
+// "episode", d'autres "episode_id" ou "id" : on essaie les trois, mais on ne
+// passe à la variante suivante que si l'API a répondu (erreur d'API ou liste
+// vide) — jamais après une panne réseau, pour ne pas multiplier les attentes.
+async function fetchServers(path, episode) {
+  const variants = [{ episode }, { episode_id: episode }, { id: episode }];
+  let apiError = null;
+  for (const params of variants) {
+    try {
+      const { data } = await api(path, params);
+      if (Array.isArray(data) && data.length) return data;
+      apiError = null;
+    } catch (e) {
+      if (!e.code) throw e;          // panne réseau / proxy : inutile de réessayer
+      apiError = e;
+    }
+  }
+  if (apiError) throw apiError;
+  return [];
+}
 async function viewLecteur() {
   detailChrome();
   const id = getParam("id");
@@ -2159,12 +2216,13 @@ async function viewLecteur() {
   let servers = [];
   try {
     let data;
-    if (type === "anime") {
-      ({ data } = await api(`/anime/${slug}/servers`, { episode }));
-    } else if (type === "hentai") {
-      ({ data } = await api(`/hentai/${slug}/servers`, { episode }));
-    } else if (type === "dramas") {
-      ({ data } = await api(`/dramas/${slug}/servers`, { episode }));
+    if (type === "hentai") {
+      // /hentai d'abord, puis repli sur /anime si l'API ne connaît pas ce titre côté hentai
+      try { data = await fetchServers(`/hentai/${slug}/servers`, episode); }
+      catch (e1) { try { data = await fetchServers(`/anime/${slug}/servers`, episode); } catch (e2) { throw e1; } }
+      if (!data || !data.length) { try { data = await fetchServers(`/anime/${slug}/servers`, episode); } catch (e2) { /* on garde la liste vide */ } }
+    } else if (type === "anime" || type === "dramas") {
+      data = await fetchServers(`/${type}/${slug}/servers`, episode);
     } else if (id) {
       // BUGFIX : si l'id d'épisode fourni échoue (mauvais champ côté fiche
       // film/série), on retombe sur l'endpoint "/servers" du titre lui-même.
@@ -2185,13 +2243,13 @@ async function viewLecteur() {
 
     servers = data;
     if (!servers || !servers.length) {
-      document.getElementById("player").innerHTML = `<div class="error-box"><p>Aucun serveur disponible.</p></div>`;
+      document.getElementById("player").innerHTML = `<div class="error-box"><p>Aucun serveur disponible.</p><p style="margin-top:10px"><a class="btn" onclick="nav('diagnostic')">Lancer le diagnostic</a></p></div>`;
       return;
     }
     renderServerTabs(servers);
     switchServer(0, servers);
   } catch (e) {
-    document.getElementById("player").innerHTML = `<div class="error-box"><h2>😕 Erreur</h2><p>${e.message}</p></div>`;
+    document.getElementById("player").innerHTML = `<div class="error-box"><h2>😕 Erreur</h2><p>${e.message}</p><p style="margin-top:10px"><a class="btn" onclick="nav('diagnostic')">Lancer le diagnostic</a></p></div>`;
   }
 }
 // Titres similaires sous le lecteur : on utilise "related" de la fiche si
@@ -2230,25 +2288,65 @@ function renderServerTabs(servers) {
     <button type="button" class="server-btn" onclick="switchServer(${i}, window.__pmServers)">${s.server_name} <small>(${s.version})</small></button>`).join("");
   window.__pmServers = servers;
 }
-function switchServer(i, servers) {
+const MEDIA_RE = /\.(mp4|webm|m3u8)(\?|#|$)/i;
+window.__pmMode = 0;   // 0 protégé · 1 compatibilité (sans bac à sable) · 2 compatibilité + sans referrer
+function loadHlsLib() {
+  return new Promise((resolve, reject) => {
+    if (window.Hls) return resolve(window.Hls);
+    const sc = document.createElement("script");
+    sc.src = "https://cdn.jsdelivr.net/npm/hls.js@1";
+    sc.onload = () => resolve(window.Hls);
+    sc.onerror = () => reject(new Error("hls.js indisponible"));
+    document.head.appendChild(sc);
+  });
+}
+function switchServer(i, servers, newMode) {
   servers = servers || window.__pmServers;
+  if (typeof newMode === "number") window.__pmMode = newMode;
+  window.__pmIndex = i;
   document.querySelectorAll(".server-btn").forEach((b, idx) => b.classList.toggle("active", idx === i));
   const originalLink = servers[i].server_link;
   let link = originalLink;
   if (location.protocol === "https:" && link.startsWith("http://")) link = "https://" + link.slice("http://".length);
-  // BUGFIX : certains hébergeurs de lecteurs affichent un mur "Checking
-  // your browser..." (anti-bot) qui ne se termine jamais quand la requête
-  // n'a pas de referrer, ou quand la sandbox de l'iframe l'empêche de se
-  // recharger / poser un cookie après la vérification — d'où allow-scripts,
-  // allow-same-origin, allow-forms et un referrer non vide ci-dessus.
-  // BUGFIX (pubs) : c'est justement allow-popups / allow-popups-to-escape-
-  // sandbox / allow-top-navigation-by-user-activation qui laissent passer
-  // les popunders et redirections publicitaires de ces hébergeurs gratuits.
-  // On les retire : la vérification anti-bot n'en a pas besoin (elle recharge
-  // l'iframe elle-même, pas la page du dessus), alors que les pubs, si.
-  document.getElementById("player").innerHTML = `<iframe src="${link}" allowfullscreen allow="autoplay; fullscreen; picture-in-picture; encrypted-media" referrerpolicy="origin" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>`;
+  const player = document.getElementById("player");
+  const safeLink = String(link).replace(/"/g, "&quot;");
+
+  if (MEDIA_RE.test(link)) {
+    // Lien direct vers un fichier vidéo : un <video> natif, pas une iframe.
+    player.innerHTML = `<video id="pmVideo" controls playsinline preload="metadata" style="width:100%;height:100%;background:#000"></video>`;
+    const video = document.getElementById("pmVideo");
+    const failed = () => { player.innerHTML = `<div class="error-box"><p>Cette vidéo ne peut pas être lue ici. Essaie un autre serveur ou ouvre-la dans un nouvel onglet.</p></div>`; };
+    if (/\.m3u8(\?|#|$)/i.test(link) && !video.canPlayType("application/vnd.apple.mpegurl")) {
+      loadHlsLib().then((Hls) => {
+        if (!Hls || !Hls.isSupported()) return failed();
+        const hls = new Hls();
+        hls.loadSource(link); hls.attachMedia(video);
+        hls.on(Hls.Events.ERROR, (e, d) => { if (d && d.fatal) failed(); });
+      }).catch(failed);
+    } else {
+      video.src = link;
+      video.addEventListener("error", failed, { once: true });
+    }
+  } else {
+    // Mode protégé (par défaut) : bac à sable sans popups => pas de pubs/redirections.
+    // Mode compatibilité : certains hébergeurs refusent de jouer dans une iframe
+    // "sandboxée" ; on la charge alors sans bac à sable.
+    const mode = window.__pmMode;
+    const sandbox = mode >= 1 ? "" : ` sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"`;
+    const referrer = mode >= 2 ? "no-referrer" : "origin";
+    player.innerHTML = `<iframe src="${safeLink}" allowfullscreen allow="autoplay; fullscreen; picture-in-picture; encrypted-media" referrerpolicy="${referrer}"${sandbox}></iframe>`;
+  }
+
+  // En mode compatibilité l'iframe n'est plus isolée : si une pub tente de rediriger
+  // la page entière, le navigateur demande confirmation au lieu de partir en silence.
+  window.onbeforeunload = window.__pmMode >= 1 ? (e) => { e.preventDefault(); e.returnValue = ""; } : null;
+  const mode = window.__pmMode;
+  const labels = ["Essayer le mode compatibilité", "Essayer sans referrer", "Revenir au mode protégé"];
   document.getElementById("fallbackLink").innerHTML =
-    `Le lecteur ne s'affiche pas ? <a href="${originalLink}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:700">Ouvrir dans un nouvel onglet</a>`;
+    `Le lecteur ne s'affiche pas ? ` +
+    `<button type="button" class="btn-outline compat-btn" onclick="switchServer(${i}, window.__pmServers, ${(mode + 1) % 3})">${labels[mode]}</button> ` +
+    `<a href="${String(originalLink).replace(/"/g, "&quot;")}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:700">Ouvrir dans un nouvel onglet</a>` +
+    (mode ? `<br><small>Mode compatibilité actif : des publicités de l'hébergeur peuvent apparaître.</small>` : "");
 }
 
 /* ----- Ma Liste ----- */
@@ -2320,6 +2418,10 @@ function viewParametres() {
         <div class="toggle-row"><div class="label">Notifications<small>Nouveautés et épisodes ajoutés</small></div><label class="switch"><input type="checkbox" id="prefNotif"><span class="slider"></span></label></div>
         <div class="toggle-row"><div class="label">Sous-titres par défaut<small>Afficher les sous-titres quand disponibles</small></div><label class="switch"><input type="checkbox" id="prefSubs"><span class="slider"></span></label></div>
       </div>
+      <div class="settings-section"><h2>Dépannage</h2>
+        <div class="toggle-row"><div class="label">Tester l'API<small>Vérifie les listes, les fiches et les serveurs de lecture</small></div>
+          <button type="button" class="btn-outline" onclick="nav('diagnostic')">Lancer</button></div>
+      </div>
       <div class="settings-section"><h2>Compte</h2>
         <button type="button" class="btn-outline" id="logoutBtn" style="color:var(--accent); background:rgba(226,38,28,.12);">Se déconnecter</button>
       </div>
@@ -2379,6 +2481,81 @@ function viewParametres() {
 /* =========================================================
    ROUTEUR PRINCIPAL
    ========================================================= */
+/* ----- Diagnostic de l'API : #/diagnostic -----
+   Teste chaque endpoint avec le même chemin que le site (proxy compris) et
+   affiche ce qui répond : listes, fiches, serveurs de lecture. Aucun titre
+   n'est affiché, seulement des identifiants techniques et des noms d'hôtes. */
+async function viewDiagnostic() {
+  detailChrome();
+  const app = document.getElementById("app");
+  app.innerHTML = `<main><h1 class="section-title">Diagnostic de l'API</h1>
+    <p class="lang-hint" style="color:var(--text-muted);margin-bottom:14px">Test en cours… cela peut prendre une minute.</p>
+    <div id="diagOut" class="diag-out"></div>
+    <button type="button" class="btn" id="diagCopy" style="margin-top:16px;display:none">Copier le rapport</button></main>`;
+  const out = document.getElementById("diagOut");
+  const lines = [];
+  const add = (ok, label, detail) => {
+    lines.push(`${ok ? "OK " : "ÉCHEC"}  ${label}${detail ? " — " + detail : ""}`);
+    const row = document.createElement("div");
+    row.className = "diag-row " + (ok ? "ok" : "ko");
+    row.textContent = `${ok ? "✔" : "✖"} ${label}${detail ? " — " + detail : ""}`;
+    out.appendChild(row);
+  };
+  const host = (u) => { try { return new URL(u).hostname; } catch (e) { return "?"; } };
+  const t0 = () => performance.now();
+  const ms = (t) => Math.round(performance.now() - t) + " ms";
+  add(true, "Base de l'API", API_BASE);
+  add(true, "Page en HTTPS", location.protocol === "https:" ? "oui (le proxy /api/proxy est nécessaire)" : "non");
+  const types = ["movies", "series", "anime", "hentai", "dramas"];
+  for (const type of types) {
+    let first = null;
+    let t = t0();
+    try {
+      const { data } = await api(`/${type}`, { page: 1 });
+      first = data && data[0];
+      add(Array.isArray(data) && data.length > 0, `Liste /${type}`, `${(data || []).length} éléments, ${ms(t)}` + (first ? `, type renvoyé : ${first.type}, champs : ${Object.keys(first).slice(0, 9).join(", ")}` : ""));
+    } catch (e) { add(false, `Liste /${type}`, e.message); continue; }
+    if (!first) continue;
+    t = t0();
+    let detail = null;
+    try {
+      ({ data: detail } = await api(`/${type}/${first.slug}`));
+      const eps = normalizeEpisodesData(detail || {});
+      add(!!detail, `Fiche /${type}/<slug>`, `${ms(t)}, épisodes : ${eps.length}, first_episode_id : ${detail.first_episode_id ? "oui" : "non"}` + (eps[0] ? `, id épisode : ${Object.keys(eps[0]).filter(k => /id|slug/i.test(k)).join("/") || "aucun champ id"}` : ""));
+    } catch (e) { add(false, `Fiche /${type}/<slug>`, e.message); continue; }
+    if (["anime", "hentai", "dramas"].includes(type)) {
+      const eps = normalizeEpisodesData(detail || {});
+      const epId = detail.first_episode_id || epIdOf(eps[0]);
+      if (!epId) { add(false, `Serveurs /${type}`, "aucun identifiant d'épisode trouvé dans la fiche"); continue; }
+      t = t0();
+      try {
+        const servers = await fetchServers(`/${type}/${first.slug}/servers`, epId);
+        const hosts = [...new Set(servers.map(sv => host(sv.server_link)))];
+        const kinds = [...new Set(servers.map(sv => MEDIA_RE.test(sv.server_link) ? "vidéo directe" : "page intégrable (iframe)"))];
+        const http = servers.filter(sv => String(sv.server_link).startsWith("http://")).length;
+        add(servers.length > 0, `Serveurs /${type}`, `${servers.length} serveur(s), ${ms(t)}, hôtes : ${hosts.join(", ") || "—"}, type : ${kinds.join(" + ") || "—"}` + (http ? `, ${http} en http (converti en https)` : ""));
+      } catch (e) { add(false, `Serveurs /${type}`, e.message); }
+      if (type === "hentai") {   // repli : ces titres sont-ils aussi servis par /anime ?
+        t = t0();
+        try {
+          const servers = await fetchServers(`/anime/${first.slug}/servers`, epId);
+          add(servers.length > 0, "Repli /anime/<slug>/servers", `${servers.length} serveur(s), ${ms(t)}`);
+        } catch (e) { add(false, "Repli /anime/<slug>/servers", e.message); }
+      }
+    } else if (type === "movies") {
+      t = t0();
+      try {
+        const { data: servers } = await api(`/movies/${first.slug}/servers`);
+        add(Array.isArray(servers) && servers.length > 0, "Serveurs /movies", `${(servers || []).length} serveur(s), ${ms(t)}, hôtes : ${[...new Set((servers || []).map(sv => host(sv.server_link)))].join(", ")}`);
+      } catch (e) { add(false, "Serveurs /movies", e.message); }
+    }
+  }
+  document.querySelector(".lang-hint").textContent = "Test terminé.";
+  const copy = document.getElementById("diagCopy");
+  copy.style.display = "inline-flex";
+  copy.onclick = () => { navigator.clipboard && navigator.clipboard.writeText(lines.join("\n")).then(() => { copy.textContent = "Rapport copié ✓"; }); };
+}
+
 const ROUTES = {
   index: viewIndex, connexion: viewConnexion, inscription: viewInscription,
   // BUGFIX : "accueil" (ancienne page d'accueil séparée) n'est plus une
@@ -2386,10 +2563,11 @@ const ROUTES = {
   // y compris les vieux liens/favoris qui pointeraient encore vers #/accueil.
   accueil: viewAccueil, catalogue: viewCatalogue, recherche: viewRecherche,
   film: viewFilm, serie: viewSerie, anime: viewAnime, hentai: viewHentai, drama: viewDrama,
-  lecteur: viewLecteur, maliste: viewMaliste, parametres: viewParametres,
+  lecteur: viewLecteur, maliste: viewMaliste, parametres: viewParametres, diagnostic: viewDiagnostic,
 };
 
 function renderApp() {
+  window.onbeforeunload = null;   // la garde anti-redirection ne vaut que sur la page lecteur
   const { path } = currentRoute();
   window.scrollTo({ top: 0 });
 
