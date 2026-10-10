@@ -35,7 +35,7 @@ export default async function handler(req, res) {
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
+  const timer = setTimeout(() => controller.abort(), 22000);
   try {
     const headers = { "Accept": "*/*" };
     if (req.headers.range) headers["Range"] = req.headers.range;
