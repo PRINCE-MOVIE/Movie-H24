@@ -741,6 +741,24 @@ body.welcome-body { background: #07070a; overflow-x: hidden; }
 .search-hero .search-box-lg { max-width: 640px; width: 100%; border-radius: 16px; padding: 4px 18px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(14px); }
 .search-hero .search-box-lg:focus-within { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(232,191,111,.14); }
 .search-hero .search-box-lg input { display: block !important; flex: 1; min-width: 0; width: auto; font-size: 16px; padding: 14px 0; }
+
+/* ===== PERFORMANCE (site lent / qui rame) =====
+   Les flous "backdrop-filter" sur chaque carte, le mur d'affiches animé
+   derrière des panneaux flous et les gros halos animés de la page de
+   connexion forcent le navigateur à recalculer des flous en continu. */
+.row-card-badge, .card-ep-tag, .mylist-heart, .tag, .type-chip, .rate-chip, .card-date {
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.card, .row-card { will-change: auto !important; }
+body.auth-body::before { filter: none !important; animation: none !important;
+  background: radial-gradient(circle, rgba(229,9,20,.32) 0%, rgba(229,9,20,0) 70%) !important; }
+body.auth-body::after { filter: none !important; animation: none !important;
+  background: radial-gradient(circle, rgba(232,191,111,.2) 0%, rgba(232,191,111,0) 70%) !important; }
+@media (max-width: 899px) {
+  * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  .wall-track { animation: none !important; }
+  header { background: rgba(10,10,10,.96) !important; }
+  .bottom-nav { background: rgba(12,12,12,.97) !important; }
+}
 </style>
 </head>
 <body>
@@ -2388,7 +2406,12 @@ function renderApp() {
 
   stopStage();
   document.body.classList.remove("auth-body");
-  if (path !== "accueil") { const an = document.getElementById("announce"); if (an) an.innerHTML = ""; }
+  if (path !== "accueil") {
+    const an = document.getElementById("announce"); if (an) an.innerHTML = "";
+    // BUGFIX : le carrousel de l'accueil (#hero) n'était pas vidé en quittant
+    // l'accueil, d'où le film qui restait affiché en haut de la connexion.
+    const hr = document.getElementById("hero"); if (hr) { hr.innerHTML = ""; hr.className = ""; }
+  }
   renderChrome();
   const view = ROUTES[path] || viewCatalogue;
   // Filet de sécurité : si une vue lève une erreur inattendue de façon
@@ -2411,12 +2434,6 @@ function renderApp() {
 window.addEventListener("error", (e) => {
   console.error("Erreur JS non gérée :", e.error || e.message);
 });
-// Header façon Netflix : transparent en haut de l'accueil, opaque dès qu'on scrolle.
-window.addEventListener("scroll", () => {
-  const header = document.getElementById("siteHeader");
-  if (!header) return;
-  header.classList.toggle("transparent-header", false);
-}, { passive: true });
 window.addEventListener("hashchange", renderApp);
 window.addEventListener("DOMContentLoaded", renderApp);
 </script>
