@@ -2217,10 +2217,30 @@ async function viewLecteur() {
   try {
     let data;
     if (type === "hentai") {
-      // /hentai d'abord, puis repli sur /anime si l'API ne connaît pas ce titre côté hentai
-      try { data = await fetchServers(`/hentai/${slug}/servers`, episode); }
-      catch (e1) { try { data = await fetchServers(`/anime/${slug}/servers`, episode); } catch (e2) { throw e1; } }
-      if (!data || !data.length) { try { data = await fetchServers(`/anime/${slug}/servers`, episode); } catch (e2) { /* on garde la liste vide */ } }
+      // CORRECTIF : on essaie TOUTES les routes possibles, dans l'ordre, et on
+      // s'arrête à la première qui renvoie au moins un serveur. Avant, une
+      // erreur sur /hentai coupait court et le repli /anime n'était jamais
+      // tenté correctement ; la route générique /episodes/<id>/servers
+      // (celle des séries) n'était pas essayée du tout.
+      const attempts = [
+        [`/hentai/${slug}/servers`, () => fetchServers(`/hentai/${slug}/servers`, episode)],
+        [`/anime/${slug}/servers`, () => fetchServers(`/anime/${slug}/servers`, episode)],
+        [`/episodes/${episode}/servers`, async () => { const r = await api(`/episodes/${episode}/servers`); return r && r.data; }],
+      ];
+      const failures = [];
+      for (const [label, run] of attempts) {
+        try {
+          const got = await run();
+          if (Array.isArray(got) && got.length) { data = got; break; }
+          failures.push(`${label} : aucun serveur`);
+        } catch (err) {
+          failures.push(`${label} : ${err && err.message ? err.message : "erreur"}`);
+        }
+      }
+      if (!data || !data.length) {
+        console.error("Lecteur hentai — toutes les routes ont échoué :", failures);
+        throw new Error("Aucun serveur trouvé pour cet épisode.<br><small style=\"opacity:.7\">" + failures.map(escHtml).join("<br>") + "</small>");
+      }
     } else if (type === "anime" || type === "dramas") {
       data = await fetchServers(`/${type}/${slug}/servers`, episode);
     } else if (id) {
