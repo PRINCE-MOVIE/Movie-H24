@@ -1,85 +1,79 @@
 /**
- * PRINCE MOVIE — Proxy CORS/HTTPS intégré au projet Vercel
- * ---------------------------------------------------------
- * Ce fichier doit être placé dans un dossier "api" à la racine de ton
- * projet Vercel (au même niveau que index.html) :
+ * PRINCE MOVIE — Proxy CORS/HTTPS (Vercel, dossier /api)
+ * Accessible à : /api/proxy?url=<URL encodée>
  *
- *   mon-projet/
- *   ├── index.html
- *   └── api/
- *       └── proxy.js   <-- ce fichier
- *
- * Vercel détecte automatiquement tout fichier dans /api comme une
- * fonction serverless. Une fois déployé, il sera accessible à :
- *   https://ton-site.vercel.app/api/proxy?url=...
- *
- * Comme cette fonction tourne côté serveur (pas dans le navigateur), elle
- * peut appeler l'API HTTP sans le blocage "contenu mixte" que subit le
- * navigateur sur un site HTTPS. Et comme elle est sur le même domaine que
- * ton site, il n'y a même plus besoin de CORS ni de proxys publics tiers.
- *
- * AUCUNE INSTALLATION SUPPLÉMENTAIRE : pas de compte Cloudflare, pas de
- * dépendance npm. Il suffit que ce fichier soit dans /api lors du déploiement.
+ * Corrections par rapport à l'ancienne version :
+ *  - Les vidéos (mp4/webm) passent maintenant en STREAMING, avec support des
+ *    requêtes "Range" (indispensable pour lire/avancer dans une vidéo).
+ *    Avant, tout le fichier était chargé en mémoire puis renvoyé d'un bloc :
+ *    impossible pour une vidéo, et limité à ~4,5 Mo sur Vercel.
+ *  - Le délai de 15 s ne coupe plus un flux vidéo en cours de lecture
+ *    (il ne s'applique qu'à l'attente de la réponse).
+ *  - Plus de double décodage de l'URL (cassait les noms de fichiers avec
+ *    espaces ou caractères encodés).
+ *  - Vérification de l'origine par URL parsée (et non par simple préfixe).
  */
+import { Readable } from "node:stream";
 
 const TARGET_ORIGIN = "http://51.75.118.170:20041";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Range");
+  res.setHeader("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges");
 
-  if (req.method === "OPTIONS") {
-    res.status(204).end();
-    return;
-  }
+  if (req.method === "OPTIONS") { res.status(204).end(); return; }
 
-  const targetParam = req.query.url;
-  let targetUrl;
-  if (targetParam) {
-    targetUrl = decodeURIComponent(targetParam);
-  } else {
+  let targetUrl = req.query.url;
+  if (Array.isArray(targetUrl)) targetUrl = targetUrl[0];
+  if (!targetUrl) {
     res.status(400).json({ success: false, error: { message: "Paramètre 'url' manquant." } });
     return;
   }
-
-  // Sécurité : on n'autorise ce proxy qu'à parler à l'API attendue, pour
-  // éviter qu'il ne serve de proxy ouvert vers n'importe quel site.
-  if (!targetUrl.startsWith(TARGET_ORIGIN)) {
+  const allowed = new URL(TARGET_ORIGIN).origin;
+  const isAllowed = (u) => { try { return new URL(u).origin === allowed; } catch (e) { return false; } };
+  if (!isAllowed(targetUrl)) {
+    // tolérance : URL encodée deux fois par un appelant
+    try { const d = decodeURIComponent(targetUrl); if (isAllowed(d)) targetUrl = d; } catch (e) {}
+  }
+  if (!isAllowed(targetUrl)) {
     res.status(403).json({ success: false, error: { message: "URL cible non autorisée." } });
     return;
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);   // attente de la réponse uniquement
+  req.on("close", () => controller.abort());
   try {
-    const upstream = await fetch(targetUrl, {
-      // BUGFIX : ce proxy sert aussi les images du catalogue (contenu mixte
-      // HTTPS -> HTTP côté navigateur, voir index.html). Restreindre Accept
-      // à "application/json" n'était pas un problème en soi, mais autant
-      // accepter tout type de réponse puisqu'on relaie désormais aussi des
-      // images.
-      headers: { "Accept": "*/*" },
-      // Le backend HTTP est parfois lent : on laisse un peu de marge avant
-      // d'abandonner, plutôt que de dépendre uniquement du timeout du
-      // navigateur côté front.
-      signal: AbortSignal.timeout(15000),
-    });
+    const headers = { "Accept": "*/*" };
+    if (req.headers.range) headers["Range"] = req.headers.range;
+    const upstream = await fetch(targetUrl, { headers, signal: controller.signal, method: req.method === "HEAD" ? "HEAD" : "GET" });
+    clearTimeout(timer);   // la réponse est arrivée : on ne coupe plus le flux
+
     const contentType = upstream.headers.get("content-type") || "application/json";
     res.status(upstream.status);
     res.setHeader("Content-Type", contentType);
+    for (const h of ["content-length", "content-range", "accept-ranges"]) {
+      const v = upstream.headers.get(h);
+      if (v) res.setHeader(h, v);
+    }
 
-    // BUGFIX : lire une image (ou tout contenu binaire) avec .text() corrompt
-    // ses octets (décodage UTF-8 destructif) — le proxy renvoyait alors une
-    // image illisible plutôt qu'une vraie erreur. On relaie le contenu binaire
-    // tel quel via un Buffer, et on ne passe par .text() que pour le JSON/texte.
     const isTextual = /^(application\/json|text\/|application\/javascript)/i.test(contentType);
     if (isTextual) {
-      const text = await upstream.text();
-      res.send(text);
+      res.removeHeader("content-length");
+      res.send(await upstream.text());
+    } else if (upstream.body) {
+      Readable.fromWeb(upstream.body).on("error", () => res.end()).pipe(res);
     } else {
-      const buffer = Buffer.from(await upstream.arrayBuffer());
-      res.send(buffer);
+      res.end();
     }
   } catch (err) {
-    res.status(502).json({ success: false, error: { message: "Impossible de contacter l'API source (délai dépassé ou serveur injoignable)." } });
+    clearTimeout(timer);
+    if (!res.headersSent) {
+      res.status(502).json({ success: false, error: { message: "Impossible de contacter l'API source (délai dépassé ou serveur injoignable)." } });
+    } else {
+      res.end();
+    }
   }
-      }
+}
