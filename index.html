@@ -37,6 +37,7 @@ h1.section-title { font-size: 24px; margin-bottom: 20px; border-left: 4px solid 
 .card .info { padding: 10px; }
 .card .info strong { display: block; font-size: 14px; margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-ep-tag { position: absolute; right: 8px; bottom: 8px; z-index: 4; font-size: 10px; padding: 2px 8px; }
+.card-date { position: absolute; left: 8px; bottom: 8px; z-index: 4; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.65); color: #fff; backdrop-filter: blur(6px); }
 .has-chips { padding-top: 14px; }
 .chip-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 14px; margin-bottom: 8px; }
 .chip { flex: 0 0 auto; background: var(--card); border: 1px solid #2a2a2a; color: var(--text-muted); padding: 9px 18px; border-radius: 20px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
@@ -1706,7 +1707,15 @@ async function viewAccueil() {
   bindHearts(rowsEl);
 }
 
-const CATALOGUE_TITLES = { movies: "Films", series: "Séries", anime: "Animés", dramas: "K-Dramas" };
+const CATALOGUE_TITLES = { movies: "Films", series: "Séries", anime: "Animés", dramas: "K-Dramas", hentai: "Hentai" };
+// L'onglet "Hentai" réutilise l'API des animés (endpoint /anime) et affiche
+// la date de sortie de chaque titre. Pour changer le nom de l'onglet, il
+// suffit de modifier le libellé ci-dessus ("Hentai").
+const CATALOGUE_API_PATH = { hentai: "anime" };
+function releaseLabel(item) {
+  const raw = item && (item.release_date || item.date || item.year);
+  return raw ? String(raw) : "";
+}
 let catState = { tab: "movies", page: 1, hasContent: false, seq: 0 };
 
 function viewCatalogue() {
@@ -1748,7 +1757,7 @@ async function loadCatalogueTab() {
   const mySeq = ++catState.seq;
   if (!catState.hasContent) { app.innerHTML = `<div class="loader">Chargement</div>`; pag.innerHTML = ""; }
   try {
-    const json = await api(`/${catState.tab}`, { page: catState.page });
+    const json = await api(`/${CATALOGUE_API_PATH[catState.tab] || catState.tab}`, { page: catState.page });
     if (mySeq !== catState.seq) return;
     catState.hasContent = true;
     renderCatalogueGrid(json.data);
@@ -1764,7 +1773,17 @@ function renderCatalogueGrid(items) {
   const app = document.getElementById("catApp");
   if (!items || !items.length) { app.innerHTML = "<p>Aucun résultat.</p>"; return; }
   trackItems(items);
-  app.innerHTML = `<div class="grid">` + items.map(i => cardHtml(i, "grid")).join("") + `</div>`;
+  const showDates = catState.tab === "hentai";
+  app.innerHTML = `<div class="grid">` + items.map(i => {
+    let html = cardHtml(i, "grid");
+    const rel = showDates ? releaseLabel(i) : "";
+    if (rel) {
+      // on glisse la date de sortie juste avant la fermeture du lien de la carte
+      const k = html.lastIndexOf("</a>");
+      if (k !== -1) html = html.slice(0, k) + `<span class="card-date">${escHtml(rel)}</span>` + html.slice(k);
+    }
+    return html;
+  }).join("") + `</div>`;
   bindHearts(app);
 }
 function renderCataloguePagination(meta) {
