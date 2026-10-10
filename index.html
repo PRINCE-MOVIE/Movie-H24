@@ -838,11 +838,13 @@ const PROXIES = [
 // de re-taper inutilement sur un proxy qui vient d'être rate-limité pendant
 // que le suivant, lui, répond très bien.
 function orderedProxies() {
+  // CORRECTIF : le proxy interne (index 0) reste toujours en tête ; le dernier
+  // proxy public qui a fonctionné passe juste après, puis les autres.
   let lastGoodIdx = -1;
   try { lastGoodIdx = Number(sessionStorage.getItem("pm_last_proxy_idx")); } catch (e) {}
-  if (!Number.isInteger(lastGoodIdx) || lastGoodIdx < 0 || lastGoodIdx >= PROXIES.length) return PROXIES.map((p, i) => [p, i]);
-  const rest = PROXIES.map((p, i) => [p, i]).filter(([, i]) => i !== lastGoodIdx);
-  return [[PROXIES[lastGoodIdx], lastGoodIdx], ...rest];
+  const all = PROXIES.map((p, i) => [p, i]);
+  if (!Number.isInteger(lastGoodIdx) || lastGoodIdx <= 0 || lastGoodIdx >= PROXIES.length) return all;
+  return [all[0], all[lastGoodIdx], ...all.filter(([, i]) => i !== 0 && i !== lastGoodIdx)];
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -930,8 +932,21 @@ async function apiRaw(path, params = {}) {
   const orderedList = orderedProxies();
   const controllers = orderedList.map(() => new AbortController());
   const attempts = orderedList.map(([proxy, i], orderIdx) => (async () => {
-    const release = await proxySemaphore.acquire();
-    const timer = setTimeout(() => controllers[orderIdx].abort(), 9000);
+    // CORRECTIF PERFORMANCE : avant, les 4 proxys publics (souvent saturés, ils
+    // attendent 9 s avant d'échouer) occupaient les 4 places de la file et
+    // bloquaient le proxy interne, pourtant rapide -> accueil lent / sections
+    // vides. Maintenant : le proxy interne part tout de suite, sans file
+    // d'attente et avec un délai large (API lente) ; les proxys publics ne
+    // démarrent qu'en renfort si rien n'a répondu au bout de 3 s.
+    const isInternal = proxy === MY_PROXY_URL;
+    if (!isInternal) {
+      await new Promise((resolve, reject) => {
+        const w = setTimeout(resolve, 3000);
+        controllers[orderIdx].signal.addEventListener("abort", () => { clearTimeout(w); reject(new Error("annulé")); });
+      });
+    }
+    const release = isInternal ? () => {} : await proxySemaphore.acquire();
+    const timer = setTimeout(() => controllers[orderIdx].abort(), isInternal ? 25000 : 9000);
     try {
       const res = await fetch(proxy + encodeURIComponent(urlStr), { signal: controllers[orderIdx].signal });
       let json;
