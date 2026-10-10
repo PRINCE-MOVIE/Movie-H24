@@ -951,7 +951,7 @@ async function apiRaw(path, params = {}) {
 // n'ont rien à voir avec une vraie panne de l'API.
 // L'API peut renvoyer le même titre plusieurs fois dans une liste : on garde
 // la première occurrence (par slug), uniquement pour les listes de titres.
-const LIST_PATH_RE = /^\/(movies|series|anime|dramas|search)$/;
+const LIST_PATH_RE = /^\/(movies|series|anime|hentai|dramas|search)$/;
 function dedupeResult(path, json) {
   if (!LIST_PATH_RE.test(path) || !json || !Array.isArray(json.data)) return json;
   const seen = new Set();
@@ -1058,6 +1058,7 @@ const TYPE_ROUTE = {
   movie: "film", movies: "film", film: "film",
   series: "serie", serie: "serie",
   anime: "anime", animes: "anime",
+  hentai: "hentai", hentais: "hentai",
   drama: "drama", dramas: "drama",
 };
 function detailRoute(item) {
@@ -1459,6 +1460,7 @@ const HOME_SECTIONS = [
   { key: "series", title: "Séries", tab: "series" },
   { key: "anime", title: "Animés", tab: "anime" },
   { key: "dramas", title: "K-Dramas", tab: "dramas" },
+  { key: "hentai", title: "Hentai", tab: "hentai", api: "hentai" },
 ];
 
 /* ---------------------------------------------------------
@@ -1481,7 +1483,7 @@ const STAGE_DELAY_MS = 7000;   // durée d'affichage de chaque diapositive
 let stageTimer = null;
 function stopStage() { if (stageTimer) { clearInterval(stageTimer); stageTimer = null; } }
 
-const TYPE_LABEL = { film: "FILM", serie: "SÉRIE", anime: "ANIMÉ", drama: "K-DRAMA" };
+const TYPE_LABEL = { film: "FILM", serie: "SÉRIE", anime: "ANIMÉ", hentai: "HENTAI", drama: "K-DRAMA" };
 function typeLabel(item) { return TYPE_LABEL[detailRoute(item)] || "FILM"; }
 function itemRating(item) {
   const v = Number(item && (item.rating ?? item.score ?? item.note ?? item.vote_average));
@@ -1649,7 +1651,7 @@ async function viewAccueil() {
   const stillOnThisPage = () => location.hash === startHash;
 
   const results = await Promise.allSettled(HOME_SECTIONS.map((s, i) =>
-    new Promise(r => setTimeout(r, i * 120)).then(() => api(`/${s.tab}`, { page: 1 }))
+    new Promise(r => setTimeout(r, i * 120)).then(() => api(`/${s.api || s.tab}`, { page: 1 }))
   ));
   if (!stillOnThisPage()) return;
   rowsEl.innerHTML = "";
@@ -1711,7 +1713,7 @@ const CATALOGUE_TITLES = { movies: "Films", series: "Séries", anime: "Animés",
 // L'onglet "Hentai" réutilise l'API des animés (endpoint /anime) et affiche
 // la date de sortie de chaque titre. Pour changer le nom de l'onglet, il
 // suffit de modifier le libellé ci-dessus ("Hentai").
-const CATALOGUE_API_PATH = { hentai: "anime" };
+const CATALOGUE_API_PATH = { hentai: "hentai" };
 function releaseLabel(item) {
   const raw = item && (item.release_date || item.date || item.year);
   return raw ? String(raw) : "";
@@ -2053,6 +2055,30 @@ async function viewAnime() {
   } catch (e) { showError(e.message); }
 }
 
+async function viewHentai() {
+  detailChrome();
+  document.getElementById("app").innerHTML = `<main><div class="loader">Chargement</div></main>`;
+  const slug = getSlug();
+  if (!slug) { showError("Aucun titre sélectionné."); return; }
+  try {
+    const { data: a } = await api(`/hentai/${slug}`);
+    document.title = `${a.title} — PRINCE MOVIE`;
+    const animePlayHref = a.first_episode_id ? `lecteur?type=hentai&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(a.first_episode_id)}&title=${encodeURIComponent(a.title)}` : null;
+    document.getElementById("app").innerHTML = `<main>
+      ${detailHeroHtml({
+        image: a.image, title: a.title, year: a.year,
+        badge: a.version ? { cls: cardBadgeClass(a.version), label: a.version } : null,
+        tags: [...(a.status ? [a.status] : []), ...(a.genres || [])],
+        synopsis: a.synopsis, playHref: animePlayHref, playLabel: "Voir l'épisode 1",
+      })}
+      <div class="detail-body">
+        ${episodesBySeasonHtml(normalizeEpisodesData(a), ep => `lecteur?type=hentai&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(ep.episode_id)}&title=${encodeURIComponent(a.title + " - " + (ep.title || ep.number))}`)}
+      </div>
+    </main>`;
+    loadBackdrop(a.image);
+  } catch (e) { showError(e.message); }
+}
+
 async function viewDrama() {
   detailChrome();
   document.getElementById("app").innerHTML = `<main><div class="loader">Chargement</div></main>`;
@@ -2117,6 +2143,8 @@ async function viewLecteur() {
     let data;
     if (type === "anime") {
       ({ data } = await api(`/anime/${slug}/servers`, { episode }));
+    } else if (type === "hentai") {
+      ({ data } = await api(`/hentai/${slug}/servers`, { episode }));
     } else if (type === "dramas") {
       ({ data } = await api(`/dramas/${slug}/servers`, { episode }));
     } else if (id) {
@@ -2158,7 +2186,7 @@ async function loadSimilar(type, slug) {
     box.innerHTML = html;
     return box;
   };
-  if (!type || !slug || !["movies", "series", "anime", "dramas"].includes(type)) return;
+  if (!type || !slug || !["movies", "series", "anime", "hentai", "dramas"].includes(type)) return;
   let items = [];
   try {
     const { data } = await api(`/${type}/${slug}`);
@@ -2339,7 +2367,7 @@ const ROUTES = {
   // option du site — tout pointe maintenant vers "catalogue" (Parcourir),
   // y compris les vieux liens/favoris qui pointeraient encore vers #/accueil.
   accueil: viewAccueil, catalogue: viewCatalogue, recherche: viewRecherche,
-  film: viewFilm, serie: viewSerie, anime: viewAnime, drama: viewDrama,
+  film: viewFilm, serie: viewSerie, anime: viewAnime, hentai: viewHentai, drama: viewDrama,
   lecteur: viewLecteur, maliste: viewMaliste, parametres: viewParametres,
 };
 
