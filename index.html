@@ -1124,6 +1124,54 @@ function getSlug(key = "slug") { return getParam(key); }
 // avec les clés utilisées pour choisir la page de détail (ex: "dramas" vs
 // "drama"). On normalise pour que le clic sur un
 // résultat de recherche ou une carte mène TOUJOURS à la bonne fiche.
+
+/* =========================================================
+   Résolution des endpoints "optionnels" (hentai, manga, manhwa, webtoon)
+   Le nom exact du point d'accès peut varier selon la version de l'API
+   (singulier/pluriel...). On essaie les noms possibles dans l'ordre et on
+   retient celui qui répond avec des données.
+   ========================================================= */
+const ENDPOINT_CANDIDATES = {
+  hentai: ["hentai", "hentais"],
+  manga: ["manga", "mangas"],
+  manhwa: ["manhwa", "manhwas", "mawha", "manhua"],
+  webtoon: ["webtoon", "webtoons"],
+};
+const resolvedEndpoint = {};
+function endpointNames(type) {
+  const base = ENDPOINT_CANDIDATES[type] || [type];
+  const r = resolvedEndpoint[type];
+  return r ? [r, ...base.filter(n => n !== r)] : base;
+}
+// Liste d'une catégorie (page d'accueil, catalogue, titres similaires).
+async function listApi(type, params = {}) {
+  if (!ENDPOINT_CANDIDATES[type]) return api(`/${type}`, params);
+  const names = endpointNames(type);
+  let firstErr = null;
+  for (let i = 0; i < names.length; i++) {
+    try {
+      const r = i === 0 ? await api(`/${names[i]}`, params) : await apiRaw(`/${names[i]}`, params);
+      if (r && Array.isArray(r.data) && r.data.length) {
+        resolvedEndpoint[type] = names[i];
+        r.data.forEach(it => { if (it) it.type = type; });
+        return dedupeResult(`/${type}`, r);
+      }
+      firstErr = firstErr || new Error(`/${names[i]} : la liste est vide`);
+    } catch (e) { firstErr = firstErr || e; }
+  }
+  throw firstErr || new Error("Aucune donnée reçue de l'API.");
+}
+// Fiche / sous-ressource d'un titre : /<nom>/<suffixe>
+async function apiMulti(type, suffix, params = {}) {
+  const names = endpointNames(type);
+  let firstErr = null;
+  for (let i = 0; i < names.length; i++) {
+    try { return i === 0 ? await api(`/${names[i]}${suffix}`, params) : await apiRaw(`/${names[i]}${suffix}`, params); }
+    catch (e) { firstErr = firstErr || e; }
+  }
+  throw firstErr || new Error("Aucune réponse de l'API.");
+}
+
 const TYPE_ROUTE = {
   movie: "film", movies: "film", film: "film",
   series: "serie", serie: "serie",
@@ -1727,15 +1775,16 @@ async function viewAccueil() {
   const stillOnThisPage = () => location.hash === startHash;
 
   const results = await Promise.allSettled(HOME_SECTIONS.map((s, i) =>
-    new Promise(r => setTimeout(r, i * 120)).then(() => api(`/${s.api || s.tab}`, { page: 1 }))
+    new Promise(r => setTimeout(r, i * 120)).then(() => (ENDPOINT_CANDIDATES[s.tab] ? listApi(s.tab, { page: 1 }) : api(`/${s.api || s.tab}`, { page: 1 })))
   ));
   if (!stillOnThisPage()) return;
   rowsEl.innerHTML = "";
 
   const loaded = {};
+  const failedReason = {};
   results.forEach((res, i) => {
     const s = HOME_SECTIONS[i];
-    if (res.status !== "fulfilled") { console.error(`Erreur sur ${s.key} :`, res.reason); return; }
+    if (res.status !== "fulfilled") { console.error(`Erreur sur ${s.key} :`, res.reason); failedReason[s.key] = (res.reason && res.reason.message) || "erreur"; return; }
     const data = res.value && res.value.data;
     if (data && data.length) { loaded[s.key] = data; trackItems(data); }
   });
@@ -1779,7 +1828,14 @@ async function viewAccueil() {
   HOME_SECTIONS.forEach(s => {
     let data = loaded[s.key];
     if (s.key === "movies" && data) data = data.slice(10);   // les 10 premiers sont déjà dans le Top 10
-    if (!data || !data.length) return;
+    if (!data || !data.length) {
+      // Les catégories optionnelles restent visibles même si l'API ne répond pas
+      // (au lieu de disparaître sans explication).
+      if (ENDPOINT_CANDIDATES[s.key]) {
+        rowsEl.appendChild(rowBlock({ title: s.title, tab: s.tab, inner: `<p style="color:var(--text-muted);padding:8px 4px">Aucun contenu reçu de l'API pour « ${escHtml(s.title)} »${failedReason[s.key] ? " (" + escHtml(failedReason[s.key]) + ")" : ""}. Ouvre le diagnostic dans Paramètres pour voir les points d'accès disponibles.</p>` }));
+      }
+      return;
+    }
     rowsEl.appendChild(rowBlock({ title: s.key === "movies" ? "Plus de films" : s.title, tab: s.tab, inner: data.map(i => cardHtml(i, "row")).join("") }));
   });
   bindHearts(rowsEl);
@@ -1835,7 +1891,7 @@ async function loadCatalogueTab() {
   const mySeq = ++catState.seq;
   if (!catState.hasContent) { app.innerHTML = `<div class="loader">Chargement</div>`; pag.innerHTML = ""; }
   try {
-    const json = await api(`/${CATALOGUE_API_PATH[catState.tab] || catState.tab}`, { page: catState.page });
+    const json = await listApi(catState.tab, { page: catState.page });
     if (mySeq !== catState.seq) return;
     catState.hasContent = true;
     renderCatalogueGrid(json.data);
@@ -1844,7 +1900,13 @@ async function loadCatalogueTab() {
     if (mySeq !== catState.seq) return;
     console.error("Erreur :", e);
     if (catState.hasContent) showRetryBanner("Impossible de charger cette page. " + e.message, loadCatalogueTab);
-    else showError(e.message);
+    else {
+      // BUGFIX : on garde les onglets (chips) visibles au lieu de remplacer
+      // toute la page par une erreur, pour pouvoir changer de catégorie.
+      app.innerHTML = `<div class="error-box"><div class="error-icon">${WARN_ICON}</div><h2>Catégorie indisponible</h2><p>${escHtml(e.message)}</p><button class="btn" id="catRetry">Réessayer</button></div>`;
+      pag.innerHTML = "";
+      const rb = document.getElementById("catRetry"); if (rb) rb.onclick = loadCatalogueTab;
+    }
   }
 }
 function renderCatalogueGrid(items) {
@@ -2138,7 +2200,7 @@ async function viewHentai() {
   if (!slug) { showError("Aucun titre sélectionné."); return; }
   try {
     let a;
-    try { ({ data: a } = await api(`/hentai/${slug}`)); }
+    try { ({ data: a } = await apiMulti("hentai", `/${slug}`)); }
     catch (e1) {
       try { ({ data: a } = await api(`/anime/${slug}`)); }   // repli : certaines versions de l'API servent ces titres via /anime
       catch (e2) { throw e1; }
@@ -2192,15 +2254,18 @@ function extractPageUrls(d, depth = 0) {
 }
 async function fetchChapterPages(type, slug, chapter) {
   const s = encodeURIComponent(slug), c = encodeURIComponent(chapter);
-  const attempts = [
-    [`/${type}/${s}/chapters/${c}`, {}],
-    [`/${type}/${s}/chapter/${c}`, {}],
-    [`/${type}/${s}/pages`, { chapter }],
-    [`/${type}/${s}/pages`, { chapter_id: chapter }],
-    [`/${type}/${s}/read`, { chapter }],
-    [`/${type}/${s}/servers`, { chapter }],
-    [`/${type}/${s}/servers`, { episode: chapter }],
-  ];
+  const attempts = [];
+  for (const n of endpointNames(type)) {
+    attempts.push(
+      [`/${n}/${s}/chapters/${c}`, {}],
+      [`/${n}/${s}/chapter/${c}`, {}],
+      [`/${n}/${s}/pages`, { chapter }],
+      [`/${n}/${s}/pages`, { chapter_id: chapter }],
+      [`/${n}/${s}/read`, { chapter }],
+      [`/${n}/${s}/servers`, { chapter }],
+      [`/${n}/${s}/servers`, { episode: chapter }],
+    );
+  }
   const failures = [];
   for (const [path, params] of attempts) {
     try {
@@ -2221,7 +2286,7 @@ async function viewComic(type) {
   const slug = getSlug();
   if (!slug) { showError("Aucun titre sélectionné."); return; }
   try {
-    const { data: a } = await api(`/${type}/${encodeURIComponent(slug)}`);
+    const { data: a } = await apiMulti(type, `/${encodeURIComponent(slug)}`);
     document.title = `${a.title} — PRINCE MOVIE`;
     const chapters = normalizeChapters(a);
     const first = chapters.length ? chapters.slice().sort((x, y) => (+x.number || 0) - (+y.number || 0))[0] : null;
@@ -2270,7 +2335,7 @@ async function viewLire() {
     </main>`;
     // Boutons précédent / suivant (facultatifs : si la fiche ne répond pas, on les omet)
     try {
-      const { data: a } = await api(`/${type}/${encodeURIComponent(slug)}`);
+      const { data: a } = await apiMulti(type, `/${encodeURIComponent(slug)}`);
       const list = normalizeChapters(a);
       const sorted = list.every(c => Number.isFinite(+c.number)) ? list.slice().sort((x, y) => +x.number - +y.number) : list;
       const idx = sorted.findIndex(c => String(chapterIdOf(c)) === String(chapter));
@@ -2376,7 +2441,7 @@ async function viewLecteur() {
       // tenté correctement ; la route générique /episodes/<id>/servers
       // (celle des séries) n'était pas essayée du tout.
       const attempts = [
-        [`/${type}/${slug}/servers`, () => fetchServers(`/${type}/${slug}/servers`, episode)],
+        ...endpointNames(type).map(n => [`/${n}/${slug}/servers`, () => fetchServers(`/${n}/${slug}/servers`, episode)]),
         ...(type === "hentai" ? [[`/anime/${slug}/servers`, () => fetchServers(`/anime/${slug}/servers`, episode)]] : []),
         [`/episodes/${episode}/servers`, async () => { const r = await api(`/episodes/${episode}/servers`); return r && r.data; }],
       ];
@@ -2436,12 +2501,12 @@ async function loadSimilar(type, slug) {
   if (!type || !slug || !["movies", "series", "anime", "hentai", "manga", "manhwa", "webtoon", "dramas"].includes(type)) return;
   let items = [];
   try {
-    const { data } = await api(`/${type}/${slug}`);
+    const { data } = await apiMulti(type, `/${slug}`);
     if (data && Array.isArray(data.related)) items = data.related.map(r => ({ ...r, type: r.type || type }));
   } catch (e) { console.error("Titres similaires (fiche) :", e); }
   if (items.length < 8) {
     try {
-      const { data } = await api(`/${type}`, { page: 1 });
+      const { data } = await listApi(type, { page: 1 });
       items = items.concat((data || []).map(r => ({ ...r, type: r.type || type })));
     } catch (e) { console.error("Titres similaires (catégorie) :", e); }
   }
@@ -2713,7 +2778,7 @@ async function viewDiagnostic() {
     let first = null;
     let t = t0();
     try {
-      const { data } = await api(`/${type}`, { page: 1 });
+      const { data } = await listApi(type, { page: 1 });
       first = data && data[0];
       add(Array.isArray(data) && data.length > 0, `Liste /${type}`, `${(data || []).length} éléments, ${ms(t)}` + (first ? `, type renvoyé : ${first.type}, champs : ${Object.keys(first).slice(0, 9).join(", ")}` : ""));
     } catch (e) { add(false, `Liste /${type}`, e.message); continue; }
@@ -2721,7 +2786,7 @@ async function viewDiagnostic() {
     t = t0();
     let detail = null;
     try {
-      ({ data: detail } = await api(`/${type}/${first.slug}`));
+      ({ data: detail } = await apiMulti(type, `/${first.slug}`));
       const eps = normalizeEpisodesData(detail || {});
       add(!!detail, `Fiche /${type}/<slug>`, `${ms(t)}, épisodes : ${eps.length}, first_episode_id : ${detail.first_episode_id ? "oui" : "non"}` + (eps[0] ? `, id épisode : ${Object.keys(eps[0]).filter(k => /id|slug/i.test(k)).join("/") || "aucun champ id"}` : ""));
     } catch (e) { add(false, `Fiche /${type}/<slug>`, e.message); continue; }
