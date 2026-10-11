@@ -767,6 +767,13 @@ body.auth-body::after { filter: none !important; animation: none !important;
 .diag-row { padding: 12px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.5; word-break: break-word; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
 .diag-row.ok { border-color: rgba(60,200,120,.4); }
 .diag-row.ko { border-color: rgba(255,92,92,.5); color: #ffb4b4; }
+
+/* ===== Lecteur manga / manhwa / webtoon ===== */
+.reader-wrap { max-width: 860px; margin: 0 auto; padding: 12px 0 40px; }
+.reader-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
+.reader-title { font-weight: 700; font-size: 14px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader { display: flex; flex-direction: column; align-items: center; background: #000; }
+.reader img { width: 100%; height: auto; display: block; }
 </style>
 </head>
 <body>
@@ -1008,12 +1015,15 @@ async function apiRaw(path, params = {}) {
 // n'ont rien à voir avec une vraie panne de l'API.
 // L'API peut renvoyer le même titre plusieurs fois dans une liste : on garde
 // la première occurrence (par slug), uniquement pour les listes de titres.
-const LIST_PATH_RE = /^\/(movies|series|anime|hentai|dramas|search)$/;
+const LIST_PATH_RE = /^\/(movies|series|anime|hentai|manga|manhwa|webtoon|dramas|search)$/;
 function dedupeResult(path, json) {
   if (!LIST_PATH_RE.test(path) || !json || !Array.isArray(json.data)) return json;
   // Quel que soit le champ "type" renvoyé par l'API (parfois "anime"), un titre
   // venant de /hentai doit ouvrir la fiche /hentai, sinon la lecture échoue.
   if (path === "/hentai") json.data.forEach(it => { if (it) it.type = "hentai"; });
+  // Idem pour les lectures (manga / manhwa / webtoon) : la fiche et le lecteur
+  // doivent interroger le bon point d'accès, quel que soit le "type" renvoyé.
+  { const m = /^\/(manga|manhwa|webtoon)$/.exec(path); if (m) json.data.forEach(it => { if (it) it.type = m[1]; }); }
   const seen = new Set();
   json.data = json.data.filter(it => {
     const key = it && it.slug;
@@ -1119,6 +1129,9 @@ const TYPE_ROUTE = {
   series: "serie", serie: "serie",
   anime: "anime", animes: "anime",
   hentai: "hentai", hentais: "hentai",
+  manga: "manga", mangas: "manga",
+  manhwa: "manhwa", manhwas: "manhwa", mawha: "manhwa",
+  webtoon: "webtoon", webtoons: "webtoon",
   drama: "drama", dramas: "drama",
 };
 function detailRoute(item) {
@@ -1184,10 +1197,10 @@ function cardHtml(item, size /* "grid" | "row" */) {
   const epTag = item.latest_episode || "";
   const cls = size === "row" ? "row-card" : "card";
   return `
-    <div class="${cls}" title="${item.title}">
+    <div class="${cls}" title="${escHtml(item.title)}">
       <button type="button" class="mylist-heart ${inList ? "active" : ""}" data-slug="${item.slug}" aria-label="Ma Liste">${inList ? "♥" : "♡"}</button>
       <a onclick="nav('${route}?slug=${encodeURIComponent(item.slug)}')">
-        <img src="${item.image}" alt="${item.title}" loading="lazy"
+        <img src="${item.image}" alt="${escHtml(item.title)}" loading="lazy"
              data-orig="${encodeURIComponent(item.image)}" data-retried="0" onerror="imgFallback(this)">
         <span class="type-chip">${typeLabel(item)}</span>
         ${itemRating(item) ? `<span class="rate-chip">${itemRating(item)}</span>` : ""}
@@ -1521,6 +1534,9 @@ const HOME_SECTIONS = [
   { key: "anime", title: "Animés", tab: "anime" },
   { key: "dramas", title: "K-Dramas", tab: "dramas" },
   { key: "hentai", title: "Hentai", tab: "hentai", api: "hentai" },
+  { key: "manga", title: "Manga", tab: "manga", api: "manga" },
+  { key: "manhwa", title: "Manhwa", tab: "manhwa", api: "manhwa" },
+  { key: "webtoon", title: "Webtoon", tab: "webtoon", api: "webtoon" },
 ];
 
 /* ---------------------------------------------------------
@@ -1543,7 +1559,7 @@ const STAGE_DELAY_MS = 7000;   // durée d'affichage de chaque diapositive
 let stageTimer = null;
 function stopStage() { if (stageTimer) { clearInterval(stageTimer); stageTimer = null; } }
 
-const TYPE_LABEL = { film: "FILM", serie: "SÉRIE", anime: "ANIMÉ", hentai: "HENTAI", drama: "K-DRAMA" };
+const TYPE_LABEL = { film: "FILM", serie: "SÉRIE", anime: "ANIMÉ", hentai: "HENTAI", manga: "MANGA", manhwa: "MANHWA", webtoon: "WEBTOON", drama: "K-DRAMA" };
 function typeLabel(item) { return TYPE_LABEL[detailRoute(item)] || "FILM"; }
 function itemRating(item) {
   const v = Number(item && (item.rating ?? item.score ?? item.note ?? item.vote_average));
@@ -1769,7 +1785,7 @@ async function viewAccueil() {
   bindHearts(rowsEl);
 }
 
-const CATALOGUE_TITLES = { movies: "Films", series: "Séries", anime: "Animés", dramas: "K-Dramas", hentai: "Hentai" };
+const CATALOGUE_TITLES = { movies: "Films", series: "Séries", anime: "Animés", dramas: "K-Dramas", hentai: "Hentai", manga: "Manga", manhwa: "Manhwa", webtoon: "Webtoon" };
 // L'onglet "Hentai" réutilise l'API des animés (endpoint /anime) et affiche
 // la date de sortie de chaque titre. Pour changer le nom de l'onglet, il
 // suffit de modifier le libellé ci-dessus ("Hentai").
@@ -2146,6 +2162,128 @@ async function viewHentai() {
   } catch (e) { showError(e.message); }
 }
 
+
+/* ----- Manga / Manhwa / Webtoon : fiche + lecteur de chapitres ----- */
+const COMIC_LABEL = { manga: "Manga", manhwa: "Manhwa", webtoon: "Webtoon" };
+function chapterIdOf(c) { return c ? (c.chapter_id ?? c.episode_id ?? c.id ?? c.slug ?? c.number ?? "") : ""; }
+// Les chapitres peuvent arriver sous "chapters", "episodes" ou "seasons" selon la version de l'API.
+function normalizeChapters(data) {
+  let list = [];
+  if (Array.isArray(data.chapters) && data.chapters.length) list = data.chapters;
+  else list = normalizeEpisodesData(data);
+  return list.map((c, i) => ({ ...c, number: c.number ?? c.chapter ?? (i + 1), title: c.title || ("Chapitre " + (c.number ?? c.chapter ?? (i + 1))) }));
+}
+// Extrait une liste d'URL d'images d'une réponse d'API, quelle que soit sa forme.
+function extractPageUrls(d, depth = 0) {
+  if (!d || depth > 3) return [];
+  const pick = (x) => typeof x === "string" ? x : (x && (x.url || x.image || x.src || x.link || x.page || x.img)) || "";
+  if (Array.isArray(d)) {
+    const urls = d.map(pick).filter(u => /^(https?:)?\/\//i.test(u) || /^\//.test(u));
+    if (urls.length) return urls;
+    for (const x of d) { const r = extractPageUrls(x, depth + 1); if (r.length) return r; }
+    return [];
+  }
+  if (typeof d === "object") {
+    for (const k of ["images", "pages", "data", "chapter", "content", "result"]) {
+      if (d[k]) { const r = extractPageUrls(d[k], depth + 1); if (r.length) return r; }
+    }
+  }
+  return [];
+}
+async function fetchChapterPages(type, slug, chapter) {
+  const s = encodeURIComponent(slug), c = encodeURIComponent(chapter);
+  const attempts = [
+    [`/${type}/${s}/chapters/${c}`, {}],
+    [`/${type}/${s}/chapter/${c}`, {}],
+    [`/${type}/${s}/pages`, { chapter }],
+    [`/${type}/${s}/pages`, { chapter_id: chapter }],
+    [`/${type}/${s}/read`, { chapter }],
+    [`/${type}/${s}/servers`, { chapter }],
+    [`/${type}/${s}/servers`, { episode: chapter }],
+  ];
+  const failures = [];
+  for (const [path, params] of attempts) {
+    try {
+      const json = await apiRaw(path, params);
+      const urls = extractPageUrls(json && json.data !== undefined ? json.data : json);
+      if (urls.length) return urls;
+      failures.push(`${path} : réponse sans image`);
+    } catch (e) { failures.push(`${path} : ${e.message}`); }
+  }
+  console.error("Lecteur BD — toutes les routes ont échoué :", failures);
+  throw new Error("Impossible de charger les pages de ce chapitre pour le moment.");
+}
+
+async function viewComic(type) {
+  detailChrome();
+  const label = COMIC_LABEL[type];
+  document.getElementById("app").innerHTML = `<main><div class="loader">Chargement</div></main>`;
+  const slug = getSlug();
+  if (!slug) { showError("Aucun titre sélectionné."); return; }
+  try {
+    const { data: a } = await api(`/${type}/${encodeURIComponent(slug)}`);
+    document.title = `${a.title} — PRINCE MOVIE`;
+    const chapters = normalizeChapters(a);
+    const first = chapters.length ? chapters.slice().sort((x, y) => (+x.number || 0) - (+y.number || 0))[0] : null;
+    const href = (c) => `lire?type=${type}&slug=${encodeURIComponent(a.slug || slug)}&chapter=${encodeURIComponent(chapterIdOf(c))}&title=${encodeURIComponent(a.title + " - " + c.title)}`;
+    document.getElementById("app").innerHTML = `<main>
+      ${detailHeroHtml({
+        image: a.image, title: a.title, year: a.year,
+        badge: null,
+        tags: [label, ...(a.status ? [a.status] : []), ...(a.genres || [])],
+        synopsis: a.synopsis, playHref: first ? href(first) : null, playLabel: "Lire le chapitre 1",
+      })}
+      <div class="detail-body">
+        ${chapters.length ? `<div class="ep-rows">${chapters.map(c => `
+          <a class="ep-row" onclick="nav('${href(c)}')">
+            <div class="ep-num">${escHtml(c.number)}</div>
+            <div class="ep-info"><div class="ep-title">${escHtml(c.title)}</div></div>
+            <div class="ep-play">${PLAY_ICON_SVG}</div>
+          </a>`).join("")}</div>` : `<p style="color:var(--text-muted)">Aucun chapitre disponible.</p>`}
+      </div>
+    </main>`;
+    loadBackdrop(a.image);
+  } catch (e) { showError(e.message); }
+}
+const viewManga = () => viewComic("manga");
+const viewManhwa = () => viewComic("manhwa");
+const viewWebtoon = () => viewComic("webtoon");
+
+async function viewLire() {
+  detailChrome();
+  const type = getParam("type"), slug = getParam("slug"), chapter = getParam("chapter"), title = getParam("title") || "";
+  if (!COMIC_LABEL[type] || !slug || chapter === null || chapter === "") { showError("Chapitre introuvable."); return; }
+  document.title = `${title} — PRINCE MOVIE`;
+  const app = document.getElementById("app");
+  app.innerHTML = `<main class="reader-wrap"><div class="loader">Chargement</div></main>`;
+  const startHash = location.hash;
+  try {
+    const pages = await fetchChapterPages(type, slug, chapter);
+    if (location.hash !== startHash) return;
+    app.innerHTML = `<main class="reader-wrap">
+      <div class="reader-bar">
+        <a class="btn-outline" onclick="nav('${type}?slug=${encodeURIComponent(slug)}')">← Chapitres</a>
+        <span class="reader-title">${escHtml(title)}</span>
+      </div>
+      <div class="reader" id="readerPages">${pages.map(u => `<img src="${escHtml(u)}" alt="" loading="lazy" data-orig="${encodeURIComponent(u)}" data-retried="0" onerror="imgFallback(this)">`).join("")}</div>
+      <div class="reader-bar" id="readerNav"></div>
+    </main>`;
+    // Boutons précédent / suivant (facultatifs : si la fiche ne répond pas, on les omet)
+    try {
+      const { data: a } = await api(`/${type}/${encodeURIComponent(slug)}`);
+      const list = normalizeChapters(a);
+      const sorted = list.every(c => Number.isFinite(+c.number)) ? list.slice().sort((x, y) => +x.number - +y.number) : list;
+      const idx = sorted.findIndex(c => String(chapterIdOf(c)) === String(chapter));
+      const go = (c) => `lire?type=${type}&slug=${encodeURIComponent(slug)}&chapter=${encodeURIComponent(chapterIdOf(c))}&title=${encodeURIComponent((a.title || "") + " - " + c.title)}`;
+      const box = document.getElementById("readerNav");
+      if (box && location.hash === startHash && idx !== -1) {
+        const prev = sorted[idx - 1], next = sorted[idx + 1];
+        box.innerHTML = `${prev ? `<a class="btn-outline" onclick="nav('${go(prev)}')">← Précédent</a>` : "<span></span>"}${next ? `<a class="btn" onclick="nav('${go(next)}')">Suivant →</a>` : "<span></span>"}`;
+      }
+    } catch (e) { console.error("Navigation entre chapitres :", e); }
+  } catch (e) { showError(e.message, `catalogue?tab=${type}`); }
+}
+
 async function viewDrama() {
   detailChrome();
   document.getElementById("app").innerHTML = `<main><div class="loader">Chargement</div></main>`;
@@ -2220,7 +2358,7 @@ async function viewLecteur() {
   const title = getParam("title") || "Lecture";
   document.title = `${title} — PRINCE MOVIE`;
   document.getElementById("app").innerHTML = `<main>
-    <h1 class="section-title" id="lecteurTitle">${title}</h1>
+    <h1 class="section-title" id="lecteurTitle">${escHtml(title)}</h1>
     <div class="player-wrap" id="player"><div class="loader" style="padding:200px 0">Chargement du lecteur</div></div>
     <div class="servers-tabs" id="tabs"></div>
     <p id="fallbackLink" style="text-align:center;margin-top:14px;font-size:14px;color:var(--text-muted)"></p>
@@ -2231,15 +2369,15 @@ async function viewLecteur() {
   let servers = [];
   try {
     let data;
-    if (type === "hentai") {
+    if (type === "hentai" || type === "anime" || type === "dramas") {
       // CORRECTIF : on essaie TOUTES les routes possibles, dans l'ordre, et on
       // s'arrête à la première qui renvoie au moins un serveur. Avant, une
       // erreur sur /hentai coupait court et le repli /anime n'était jamais
       // tenté correctement ; la route générique /episodes/<id>/servers
       // (celle des séries) n'était pas essayée du tout.
       const attempts = [
-        [`/hentai/${slug}/servers`, () => fetchServers(`/hentai/${slug}/servers`, episode)],
-        [`/anime/${slug}/servers`, () => fetchServers(`/anime/${slug}/servers`, episode)],
+        [`/${type}/${slug}/servers`, () => fetchServers(`/${type}/${slug}/servers`, episode)],
+        ...(type === "hentai" ? [[`/anime/${slug}/servers`, () => fetchServers(`/anime/${slug}/servers`, episode)]] : []),
         [`/episodes/${episode}/servers`, async () => { const r = await api(`/episodes/${episode}/servers`); return r && r.data; }],
       ];
       const failures = [];
@@ -2253,11 +2391,9 @@ async function viewLecteur() {
         }
       }
       if (!data || !data.length) {
-        console.error("Lecteur hentai — toutes les routes ont échoué :", failures);
+        console.error(`Lecteur ${type} — toutes les routes ont échoué :`, failures);
         throw new Error("Aucun serveur trouvé pour cet épisode.<br><small style=\"opacity:.7\">" + failures.map(escHtml).join("<br>") + "</small>");
       }
-    } else if (type === "anime" || type === "dramas") {
-      data = await fetchServers(`/${type}/${slug}/servers`, episode);
     } else if (id) {
       // BUGFIX : si l'id d'épisode fourni échoue (mauvais champ côté fiche
       // film/série), on retombe sur l'endpoint "/servers" du titre lui-même.
@@ -2297,7 +2433,7 @@ async function loadSimilar(type, slug) {
     box.innerHTML = html;
     return box;
   };
-  if (!type || !slug || !["movies", "series", "anime", "hentai", "dramas"].includes(type)) return;
+  if (!type || !slug || !["movies", "series", "anime", "hentai", "manga", "manhwa", "webtoon", "dramas"].includes(type)) return;
   let items = [];
   try {
     const { data } = await api(`/${type}/${slug}`);
@@ -2434,7 +2570,7 @@ function renderMaliste() {
     <div class="card" title="${item.title}">
       <button type="button" class="mylist-heart active" data-slug="${item.slug}" aria-label="Retirer de Ma Liste">♥</button>
       <a onclick="nav('${detailRoute(item)}?slug=${encodeURIComponent(item.slug)}')">
-        <img src="${item.image}" alt="${item.title}" loading="lazy"
+        <img src="${item.image}" alt="${escHtml(item.title)}" loading="lazy"
              data-orig="${encodeURIComponent(item.image)}" data-retried="0" onerror="imgFallback(this)">
         <span class="badge ${cardBadgeClass(item.version)} row-card-badge">${item.version || ""}</span>
       </a>
@@ -2572,7 +2708,7 @@ async function viewDiagnostic() {
   const ms = (t) => Math.round(performance.now() - t) + " ms";
   add(true, "Base de l'API", API_BASE);
   add(true, "Page en HTTPS", location.protocol === "https:" ? "oui (le proxy /api/proxy est nécessaire)" : "non");
-  const types = ["movies", "series", "anime", "hentai", "dramas"];
+  const types = ["movies", "series", "anime", "hentai", "manga", "manhwa", "webtoon", "dramas"];
   for (const type of types) {
     let first = null;
     let t = t0();
@@ -2629,6 +2765,7 @@ const ROUTES = {
   // y compris les vieux liens/favoris qui pointeraient encore vers #/accueil.
   accueil: viewAccueil, catalogue: viewCatalogue, recherche: viewRecherche,
   film: viewFilm, serie: viewSerie, anime: viewAnime, hentai: viewHentai, drama: viewDrama,
+  manga: viewManga, manhwa: viewManhwa, webtoon: viewWebtoon, lire: viewLire,
   lecteur: viewLecteur, maliste: viewMaliste, parametres: viewParametres, diagnostic: viewDiagnostic,
 };
 
