@@ -1015,7 +1015,7 @@ async function apiRaw(path, params = {}) {
 // n'ont rien à voir avec une vraie panne de l'API.
 // L'API peut renvoyer le même titre plusieurs fois dans une liste : on garde
 // la première occurrence (par slug), uniquement pour les listes de titres.
-const LIST_PATH_RE = /^\/(movies|series|anime|hentai|manga|manhwa|webtoon|dramas|search)$/;
+const LIST_PATH_RE = /^\/(movies|series|anime|hentai|manga|manhwa|webtoon|sport|sports|live|lives|dramas|search)$/;
 function dedupeResult(path, json) {
   if (!LIST_PATH_RE.test(path) || !json || !Array.isArray(json.data)) return json;
   // Quel que soit le champ "type" renvoyé par l'API (parfois "anime"), un titre
@@ -1138,6 +1138,53 @@ const ENDPOINT_CANDIDATES = {
   webtoon: ["webtoon", "webtoons"],
 };
 const resolvedEndpoint = {};
+ENDPOINT_CANDIDATES.sport = ["sports", "sport", "live", "lives"];
+
+// L'API publie sa documentation à /docs. On la lit (via le proxy du site) pour
+// repérer les vraies routes : hentai, manga, manhwa, webtoon, sport / live...
+const DISCOVERY_KEYWORDS = {
+  hentai: /hentai/i,
+  manga: /^mangas?$|manga/i,
+  manhwa: /manhwa|manhua|mawha/i,
+  webtoon: /webtoon/i,
+  sport: /sport|live|match|foot|ufc|nba|nfl/i,
+};
+let discoveryPromise = null;
+function discoverApiRoutes() {
+  if (discoveryPromise) return discoveryPromise;
+  discoveryPromise = (async () => {
+    const routes = [];
+    try {
+      const origin = new URL(API_BASE).origin;
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      const res = await fetch(MY_PROXY_URL + encodeURIComponent(origin + "/docs"), { signal: ctrl.signal });
+      clearTimeout(t);
+      const html = await res.text();
+      const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ");
+      const seen = new Set();
+      const re = /(?:GET|POST)\s+(?:\/api\/v1)?\/([a-z][a-z0-9_-]{1,30})/gi;
+      let m;
+      while ((m = re.exec(text))) seen.add(m[1].toLowerCase());
+      const re2 = /\/api\/v1\/([a-z][a-z0-9_-]{1,30})/gi;
+      while ((m = re2.exec(text))) seen.add(m[1].toLowerCase());
+      seen.forEach(n => routes.push(n));
+    } catch (e) { console.error("Lecture de /docs impossible :", e); }
+    // On ajoute les routes trouvées aux noms candidats de chaque catégorie.
+    routes.forEach(n => {
+      Object.keys(DISCOVERY_KEYWORDS).forEach(type => {
+        if (DISCOVERY_KEYWORDS[type].test(n) && !ENDPOINT_CANDIDATES[type].includes(n)) ENDPOINT_CANDIDATES[type].unshift(n);
+      });
+    });
+    return routes;
+  })();
+  return discoveryPromise;
+}
+function routesHintHtml(routes) {
+  return routes && routes.length
+    ? `<p style="font-size:12px;opacity:.75;margin-top:10px">Routes trouvées dans la documentation de l'API : ${routes.map(escHtml).join(", ")}</p>`
+    : `<p style="font-size:12px;opacity:.75;margin-top:10px">Impossible de lire la documentation de l'API (/docs).</p>`;
+}
 function endpointNames(type) {
   const base = ENDPOINT_CANDIDATES[type] || [type];
   const r = resolvedEndpoint[type];
@@ -1146,6 +1193,7 @@ function endpointNames(type) {
 // Liste d'une catégorie (page d'accueil, catalogue, titres similaires).
 async function listApi(type, params = {}) {
   if (!ENDPOINT_CANDIDATES[type]) return api(`/${type}`, params);
+  await discoverApiRoutes();
   const names = endpointNames(type);
   let firstErr = null;
   for (let i = 0; i < names.length; i++) {
@@ -1163,6 +1211,7 @@ async function listApi(type, params = {}) {
 }
 // Fiche / sous-ressource d'un titre : /<nom>/<suffixe>
 async function apiMulti(type, suffix, params = {}) {
+  if (ENDPOINT_CANDIDATES[type]) await discoverApiRoutes();
   const names = endpointNames(type);
   let firstErr = null;
   for (let i = 0; i < names.length; i++) {
@@ -1180,6 +1229,7 @@ const TYPE_ROUTE = {
   manga: "manga", mangas: "manga",
   manhwa: "manhwa", manhwas: "manhwa", mawha: "manhwa",
   webtoon: "webtoon", webtoons: "webtoon",
+  sport: "sport", sports: "sport", live: "sport", lives: "sport",
   drama: "drama", dramas: "drama",
 };
 function detailRoute(item) {
@@ -1585,6 +1635,7 @@ const HOME_SECTIONS = [
   { key: "manga", title: "Manga", tab: "manga", api: "manga" },
   { key: "manhwa", title: "Manhwa", tab: "manhwa", api: "manhwa" },
   { key: "webtoon", title: "Webtoon", tab: "webtoon", api: "webtoon" },
+  { key: "sport", title: "Lives sport", tab: "sport", api: "sport" },
 ];
 
 /* ---------------------------------------------------------
@@ -1607,7 +1658,7 @@ const STAGE_DELAY_MS = 7000;   // durée d'affichage de chaque diapositive
 let stageTimer = null;
 function stopStage() { if (stageTimer) { clearInterval(stageTimer); stageTimer = null; } }
 
-const TYPE_LABEL = { film: "FILM", serie: "SÉRIE", anime: "ANIMÉ", hentai: "HENTAI", manga: "MANGA", manhwa: "MANHWA", webtoon: "WEBTOON", drama: "K-DRAMA" };
+const TYPE_LABEL = { film: "FILM", serie: "SÉRIE", anime: "ANIMÉ", hentai: "HENTAI", manga: "MANGA", manhwa: "MANHWA", webtoon: "WEBTOON", sport: "LIVE", drama: "K-DRAMA" };
 function typeLabel(item) { return TYPE_LABEL[detailRoute(item)] || "FILM"; }
 function itemRating(item) {
   const v = Number(item && (item.rating ?? item.score ?? item.note ?? item.vote_average));
@@ -1841,7 +1892,7 @@ async function viewAccueil() {
   bindHearts(rowsEl);
 }
 
-const CATALOGUE_TITLES = { movies: "Films", series: "Séries", anime: "Animés", dramas: "K-Dramas", hentai: "Hentai", manga: "Manga", manhwa: "Manhwa", webtoon: "Webtoon" };
+const CATALOGUE_TITLES = { movies: "Films", series: "Séries", anime: "Animés", dramas: "K-Dramas", hentai: "Hentai", manga: "Manga", manhwa: "Manhwa", webtoon: "Webtoon", sport: "Lives sport" };
 // L'onglet "Hentai" réutilise l'API des animés (endpoint /anime) et affiche
 // la date de sortie de chaque titre. Pour changer le nom de l'onglet, il
 // suffit de modifier le libellé ci-dessus ("Hentai").
@@ -1903,7 +1954,8 @@ async function loadCatalogueTab() {
     else {
       // BUGFIX : on garde les onglets (chips) visibles au lieu de remplacer
       // toute la page par une erreur, pour pouvoir changer de catégorie.
-      app.innerHTML = `<div class="error-box"><div class="error-icon">${WARN_ICON}</div><h2>Catégorie indisponible</h2><p>${escHtml(e.message)}</p><button class="btn" id="catRetry">Réessayer</button></div>`;
+      app.innerHTML = `<div class="error-box"><div class="error-icon">${WARN_ICON}</div><h2>Catégorie indisponible</h2><p>${escHtml(e.message)}</p><button class="btn" id="catRetry">Réessayer</button><div id="catRoutes"></div></div>`;
+      discoverApiRoutes().then(r => { const el = document.getElementById("catRoutes"); if (el) el.innerHTML = routesHintHtml(r); });
       pag.innerHTML = "";
       const rb = document.getElementById("catRetry"); if (rb) rb.onclick = loadCatalogueTab;
     }
@@ -2313,6 +2365,11 @@ async function viewComic(type) {
 const viewManga = () => viewComic("manga");
 const viewManhwa = () => viewComic("manhwa");
 const viewWebtoon = () => viewComic("webtoon");
+// Sport / lives : pas de fiche détaillée, on ouvre directement le lecteur.
+function viewSport() {
+  const slug = getSlug();
+  nav(`lecteur?type=sport&slug=${encodeURIComponent(slug || "")}&title=${encodeURIComponent(getParam("title") || "Live")}`);
+}
 
 async function viewLire() {
   detailChrome();
@@ -2426,15 +2483,17 @@ async function viewLecteur() {
     <h1 class="section-title" id="lecteurTitle">${escHtml(title)}</h1>
     <div class="player-wrap" id="player"><div class="loader" style="padding:200px 0">Chargement du lecteur</div></div>
     <div class="servers-tabs" id="tabs"></div>
+    <div class="reader-bar" id="epNav"></div>
     <p id="fallbackLink" style="text-align:center;margin-top:14px;font-size:14px;color:var(--text-muted)"></p>
     <section class="similar-section" id="similar"></section>
   </main>`;
+  window.__pmNextHref = null;
   loadSimilar(type, slug);
 
   let servers = [];
   try {
     let data;
-    if (type === "hentai" || type === "anime" || type === "dramas") {
+    if (type === "hentai" || type === "anime" || type === "dramas" || type === "sport") {
       // CORRECTIF : on essaie TOUTES les routes possibles, dans l'ordre, et on
       // s'arrête à la première qui renvoie au moins un serveur. Avant, une
       // erreur sur /hentai coupait court et le repli /anime n'était jamais
@@ -2484,9 +2543,36 @@ async function viewLecteur() {
     }
     renderServerTabs(servers);
     switchServer(0, servers);
+    if (slug && ["series", "anime", "dramas", "hentai"].includes(type)) setupEpisodeNav(type, slug, episode || id, title);
   } catch (e) {
     document.getElementById("player").innerHTML = `<div class="error-box"><h2>😕 Erreur</h2><p>${e.message}</p><p style="margin-top:10px"><a class="btn" onclick="nav('diagnostic')">Lancer le diagnostic</a></p></div>`;
   }
+}
+// Boutons "Épisode précédent / suivant" sous le lecteur. Non bloquant : si la
+// fiche ne répond pas, le lecteur fonctionne quand même, sans ces boutons.
+async function setupEpisodeNav(type, slug, current, currentTitle) {
+  const startHash = location.hash;
+  try {
+    const { data: d } = await apiMulti(type, `/${encodeURIComponent(slug)}`);
+    if (location.hash !== startHash) return;
+    const list = normalizeEpisodesData(d);
+    if (list.length < 2) return;
+    const sorted = list.every(e => Number.isFinite(+e.number))
+      ? list.slice().sort((a, b) => (+(a.season || 1) - +(b.season || 1)) || (+a.number - +b.number))
+      : list;
+    const idx = sorted.findIndex(e => String(epIdOf(e)) === String(current));
+    if (idx === -1) return;
+    const base = String(currentTitle || d.title || "").split(" - ")[0] || d.title || "";
+    const href = (ep) => type === "series"
+      ? `lecteur?id=${encodeURIComponent(epIdOf(ep))}&type=series&slug=${encodeURIComponent(slug)}&title=${encodeURIComponent((d.title || base) + " - S" + (ep.season || 1) + "E" + ep.number)}`
+      : `lecteur?type=${type}&slug=${encodeURIComponent(slug)}&episode=${encodeURIComponent(epIdOf(ep))}&title=${encodeURIComponent((d.title || base) + " - " + (ep.title || ep.number))}`;
+    const prev = sorted[idx - 1], next = sorted[idx + 1];
+    window.__pmNextHref = next ? href(next) : null;
+    const box = document.getElementById("epNav");
+    if (box) box.innerHTML =
+      `${prev ? `<a class="btn-outline" onclick="nav('${href(prev)}')">← Épisode précédent</a>` : "<span></span>"}` +
+      `${next ? `<a class="btn" onclick="nav('${href(next)}')">Épisode suivant →</a>` : "<span></span>"}`;
+  } catch (e) { console.error("Navigation entre épisodes :", e); }
 }
 // Titres similaires sous le lecteur : on utilise "related" de la fiche si
 // l'API en fournit, sinon on complète avec le reste de la même catégorie.
@@ -2567,6 +2653,13 @@ function switchServer(i, servers, newMode) {
     // Lien direct vers un fichier vidéo : un <video> natif, pas une iframe.
     player.innerHTML = `<video id="pmVideo" controls playsinline preload="metadata" style="width:100%;height:100%;background:#000"></video>`;
     const video = document.getElementById("pmVideo");
+    // Réglage "Lecture automatique" : à la fin de la vidéo, on passe à l'épisode suivant.
+    video.addEventListener("ended", () => {
+      try {
+        const pr = JSON.parse(localStorage.getItem("pm_prefs") || "{}");
+        if (pr.autoplay && window.__pmNextHref) nav(window.__pmNextHref);
+      } catch (e) {}
+    });
     // CORRECTIF : on essaie d'abord le lien tel que converti en https, puis le
     // lien d'origine (certains hébergeurs ne servent PAS leurs vidéos en https,
     // et la conversion automatique les cassait). En dernier recours, on
@@ -2830,7 +2923,7 @@ const ROUTES = {
   // y compris les vieux liens/favoris qui pointeraient encore vers #/accueil.
   accueil: viewAccueil, catalogue: viewCatalogue, recherche: viewRecherche,
   film: viewFilm, serie: viewSerie, anime: viewAnime, hentai: viewHentai, drama: viewDrama,
-  manga: viewManga, manhwa: viewManhwa, webtoon: viewWebtoon, lire: viewLire,
+  manga: viewManga, manhwa: viewManhwa, webtoon: viewWebtoon, sport: viewSport, lire: viewLire,
   lecteur: viewLecteur, maliste: viewMaliste, parametres: viewParametres, diagnostic: viewDiagnostic,
 };
 
