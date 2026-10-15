@@ -1133,10 +1133,14 @@ function getSlug(key = "slug") { return getParam(key); }
    ========================================================= */
 const ENDPOINT_CANDIDATES = {
   hentai: ["hentai", "hentais"],
-  manga: ["manga", "mangas"],
-  manhwa: ["manhwa", "manhwas", "mawha", "manhua"],
-  webtoon: ["webtoon", "webtoons"],
+  // D'après la documentation de l'API : /webtoons (lelscanfr) et /comics?type=...
+  // (MangaDex) pour manga / manhwa.
+  manga: ["comics"],
+  manhwa: ["comics"],
+  webtoon: ["webtoons", "webtoon"],
 };
+// Paramètres obligatoires ajoutés quand la route est partagée (/comics?type=manga).
+const COMICS_PARAMS = { manga: { type: "manga" }, manhwa: { type: "manhwa" } };
 const resolvedEndpoint = {};
 ENDPOINT_CANDIDATES.sport = ["sports", "sport", "live", "lives"];
 
@@ -1198,7 +1202,8 @@ async function listApi(type, params = {}) {
   let firstErr = null;
   for (let i = 0; i < names.length; i++) {
     try {
-      const r = i === 0 ? await api(`/${names[i]}`, params) : await apiRaw(`/${names[i]}`, params);
+      const callParams = names[i] === "comics" ? { ...params, ...(COMICS_PARAMS[type] || {}) } : params;
+      const r = i === 0 ? await api(`/${names[i]}`, callParams) : await apiRaw(`/${names[i]}`, callParams);
       if (r && Array.isArray(r.data) && r.data.length) {
         resolvedEndpoint[type] = names[i];
         r.data.forEach(it => { if (it) it.type = type; });
