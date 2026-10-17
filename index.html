@@ -877,7 +877,7 @@ function orderedProxies() {
   return [all[0], all[lastGoodIdx], ...all.filter(([, i]) => i !== 0 && i !== lastGoodIdx)];
 }
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 10 * 60 * 1000;
 const memCache = new Map();
 
 function cacheRead(key) {
@@ -1870,6 +1870,37 @@ function rowBlock({ kicker, title, tab, inner }) {
   return block;
 }
 
+// Dernières données connues pour une rangée / un onglet (copie locale sans
+// expiration, écrite à chaque chargement réussi). Sert à afficher la page
+// immédiatement ; les données fraîches la remplacent dès qu'elles arrivent.
+function peekSection(s) {
+  try {
+    const get = (path, params) => {
+      const u = new URL(API_BASE + path);
+      Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
+      const j = cacheReadLastGood(u.toString());
+      return j && j.data ? j : null;
+    };
+    let data = null;
+    if (s.tab === "sport") {
+      const j = get("/sports/channels/featured", { limit: 14 });
+      data = j ? channelsFromResponse(j.data).map(channelToItem) : null;
+    } else {
+      let j = null;
+      if (s.tab === "hentai") j = get("/hentai", { source: getHentaiSource(), page: 1 });
+      else if (s.tab === "manga" || s.tab === "manhwa") j = get("/comics", { page: 1, type: s.tab });
+      else if (s.tab === "webtoon") j = get("/webtoons", { page: 1 });
+      else j = get("/" + (s.api || s.tab), { page: 1 });
+      if (j && Array.isArray(j.data)) {
+        data = j.data;
+        if (ENDPOINT_CANDIDATES[s.tab]) data.forEach(it => { if (it) it.type = s.tab; });
+      }
+    }
+    if (data && data.length) { fixImageUrls(data); return data; }
+  } catch (e) {}
+  return null;
+}
+
 async function viewAccueil() {
   document.body.classList.remove("welcome-body");
   const heroEl = document.getElementById("hero");
@@ -1882,23 +1913,102 @@ async function viewAccueil() {
   const startHash = location.hash;
   const stillOnThisPage = () => location.hash === startHash;
 
-  const results = await Promise.allSettled(HOME_SECTIONS.map((s, i) =>
-    new Promise(r => setTimeout(r, i * 120)).then(() => (ENDPOINT_CANDIDATES[s.tab] ? listApi(s.tab, { page: 1 }) : api(`/${s.api || s.tab}`, { page: 1 })))
-  ));
-  if (!stillOnThisPage()) return;
-  rowsEl.innerHTML = "";
-
   const loaded = {};
   const failedReason = {};
-  results.forEach((res, i) => {
-    const s = HOME_SECTIONS[i];
-    if (res.status !== "fulfilled") { console.error(`Erreur sur ${s.key} :`, res.reason); failedReason[s.key] = (res.reason && res.reason.message) || "erreur"; return; }
-    const data = res.value && res.value.data;
-    if (data && data.length) { loaded[s.key] = data; trackItems(data); }
-  });
-
   const myList = getMyList();
-  if (!Object.keys(loaded).length && !myList.length) {
+  rowsEl.innerHTML = "";
+
+  // Chaque rangée a son emplacement : elle s'affiche dès que SES données
+  // arrivent, sans attendre les autres (avant, une seule catégorie lente
+  // ou en erreur bloquait tout l'accueil).
+  const slots = {};
+  const addSlot = (key, { kicker, title, tab }) => {
+    const el = rowBlock({ kicker, title, tab, inner: `<p style="color:var(--text-muted);padding:8px 4px">Chargement…</p>` });
+    slots[key] = el; rowsEl.appendChild(el); return el;
+  };
+  const setSlot = (key, el) => { if (slots[key] && slots[key].isConnected) slots[key].replaceWith(el); slots[key] = el; };
+  const dropSlot = (key) => { if (slots[key] && slots[key].isConnected) slots[key].remove(); delete slots[key]; };
+
+  addSlot("top", { kicker: "Tendances", title: "Le Top 10 du moment" });
+  if (myList.length) {
+    trackItems(myList);
+    const ml = rowBlock({ title: "Ma Liste", inner: myList.map(i => cardHtml(i, "row")).join("") });
+    rowsEl.appendChild(ml); bindHearts(ml);
+  }
+  HOME_SECTIONS.forEach(s => addSlot(s.key, { title: s.key === "movies" ? "Plus de films" : s.title, tab: s.tab }));
+
+  const paint = (s, data) => {
+    loaded[s.key] = data; trackItems(data);
+    if (s.key === "movies") {
+      const top = rowBlock({ kicker: "Tendances", title: "Le Top 10 du moment", inner: rankRowHtml(data) });
+      setSlot("top", top); bindHearts(top);
+      data = data.slice(10);   // les 10 premiers sont déjà dans le Top 10
+      if (!data.length) { dropSlot("movies"); return; }
+    }
+    const row = rowBlock({ title: s.key === "movies" ? "Plus de films" : s.title, tab: s.tab, inner: data.map(i => cardHtml(i, "row")).join("") });
+    setSlot(s.key, row); bindHearts(row);
+  };
+  const unavailable = (s) => {
+    if (!ENDPOINT_CANDIDATES[s.key]) { dropSlot(s.key); if (s.key === "movies") dropSlot("top"); return; }
+    // Les catégories optionnelles restent visibles même si l'API ne répond pas
+    setSlot(s.key, rowBlock({ title: s.title, tab: s.tab, inner: `<p style="color:var(--text-muted);padding:8px 4px">Aucun contenu reçu de l'API pour « ${escHtml(s.title)} »${failedReason[s.key] ? " (" + escHtml(failedReason[s.key]) + ")" : ""}. Touche « Tout voir » ou réessaie plus tard.</p>` }));
+  };
+
+  // Annonce + carrousel : affichés dès que les films sont là (ou après 2,5 s)
+  let stageShown = false;
+  const tryStage = async (force) => {
+    if (stageShown || !stillOnThisPage()) return;
+    if (!Object.keys(loaded).length || (!loaded.movies && !force)) return;
+    stageShown = true;
+    const first = (loaded.movies && loaded.movies[0]) || Object.values(loaded)[0]?.[0] || null;
+    const announceItem = await resolveAnnonce(first);
+    if (!stillOnThisPage()) return;
+    showAnnonce(announceItem);
+    const pool = [];
+    for (let k = 0; k < STAGE_PER_SECTION; k++) {
+      HOME_SECTIONS.forEach(s => {
+        const it = (loaded[s.key] || [])[k];
+        if (!it || (announceItem && it.slug === announceItem.slug) || pool.some(p => p.slug === it.slug)) return;
+        pool.push(it);
+      });
+    }
+    renderStage(pool.slice(0, 8));
+  };
+
+  // 1) Affichage immédiat des dernières données connues (si on les a)
+  const staleShown = {};
+  HOME_SECTIONS.forEach(s => { const st = peekSection(s); if (st) { paint(s, st); staleShown[s.key] = true; } });
+  tryStage(false);
+
+  // 2) Données fraîches
+  const fetchSection = (s) => (ENDPOINT_CANDIDATES[s.tab] ? listApi(s.tab, { page: 1 }) : api(`/${s.api || s.tab}`, { page: 1 }));
+  const runSection = async (s, delay) => {
+    if (delay) await new Promise(r => setTimeout(r, delay));
+    if (!stillOnThisPage()) return;
+    try {
+      const res = await fetchSection(s);
+      if (!stillOnThisPage()) return;
+      const data = res && res.data;
+      if (data && data.length) paint(s, data);
+      else if (!staleShown[s.key]) unavailable(s);
+    } catch (e) {
+      console.error(`Erreur sur ${s.key} :`, e);
+      failedReason[s.key] = (e && e.message) || "erreur";
+      if (stillOnThisPage() && !staleShown[s.key]) unavailable(s);
+    }
+    tryStage(false);
+  };
+  // Les catégories principales d'abord ; les autres (hentai, manga, manhwa,
+  // webtoon, sport) ensuite, pour ne pas surcharger l'API et le proxy.
+  const core = HOME_SECTIONS.filter(s => !ENDPOINT_CANDIDATES[s.key]);
+  const extra = HOME_SECTIONS.filter(s => ENDPOINT_CANDIDATES[s.key]);
+  setTimeout(() => tryStage(true), 2500);
+  const coreP = Promise.allSettled(core.map((s, i) => runSection(s, i * 60)));
+  // On n'attend pas la catégorie la plus lente : après 1,2 s max, les autres démarrent.
+  await Promise.race([coreP, new Promise(r => setTimeout(r, 1200))]);
+  tryStage(true);
+  await Promise.allSettled([coreP, ...extra.map((s, i) => runSection(s, i * 150))]);
+  if (stillOnThisPage() && !Object.keys(loaded).length && !myList.length) {
     rowsEl.innerHTML = `
       <div class="error-box">
         <div class="error-icon">${WARN_ICON}</div>
@@ -1906,47 +2016,7 @@ async function viewAccueil() {
         <p>Impossible de charger le catalogue pour le moment.</p>
         <button class="btn" onclick="renderApp()">Réessayer</button>
       </div>`;
-    return;
   }
-
-  // Annonce + carrousel (l'annonce n'est pas répétée dans le carrousel)
-  const first = (loaded.movies && loaded.movies[0]) || Object.values(loaded)[0]?.[0] || null;
-  const announceItem = await resolveAnnonce(first);
-  if (!stillOnThisPage()) return;
-  showAnnonce(announceItem);
-
-  const pool = [];
-  for (let k = 0; k < STAGE_PER_SECTION; k++) {
-    HOME_SECTIONS.forEach(s => {
-      const it = (loaded[s.key] || [])[k];
-      if (!it || (announceItem && it.slug === announceItem.slug) || pool.some(p => p.slug === it.slug)) return;
-      pool.push(it);
-    });
-  }
-  renderStage(pool.slice(0, 8));
-
-  // Rangées
-  if (loaded.movies) {
-    rowsEl.appendChild(rowBlock({ kicker: "Tendances", title: "Le Top 10 du moment", inner: rankRowHtml(loaded.movies) }));
-  }
-  if (myList.length) {
-    trackItems(myList);
-    rowsEl.appendChild(rowBlock({ title: "Ma Liste", inner: myList.map(i => cardHtml(i, "row")).join("") }));
-  }
-  HOME_SECTIONS.forEach(s => {
-    let data = loaded[s.key];
-    if (s.key === "movies" && data) data = data.slice(10);   // les 10 premiers sont déjà dans le Top 10
-    if (!data || !data.length) {
-      // Les catégories optionnelles restent visibles même si l'API ne répond pas
-      // (au lieu de disparaître sans explication).
-      if (ENDPOINT_CANDIDATES[s.key]) {
-        rowsEl.appendChild(rowBlock({ title: s.title, tab: s.tab, inner: `<p style="color:var(--text-muted);padding:8px 4px">Aucun contenu reçu de l'API pour « ${escHtml(s.title)} »${failedReason[s.key] ? " (" + escHtml(failedReason[s.key]) + ")" : ""}. Ouvre le diagnostic dans Paramètres pour voir les points d'accès disponibles.</p>` }));
-      }
-      return;
-    }
-    rowsEl.appendChild(rowBlock({ title: s.key === "movies" ? "Plus de films" : s.title, tab: s.tab, inner: data.map(i => cardHtml(i, "row")).join("") }));
-  });
-  bindHearts(rowsEl);
 }
 
 const CATALOGUE_TITLES = { movies: "Films", series: "Séries", anime: "Animés", dramas: "K-Dramas", hentai: "Hentai", manga: "Manga", manhwa: "Manhwa", webtoon: "Webtoon", sport: "Lives sport" };
@@ -2008,7 +2078,11 @@ async function loadCatalogueTab() {
     } else sub.innerHTML = "";
   }
   const mySeq = ++catState.seq;
-  if (!catState.hasContent) { app.innerHTML = `<div class="loader">Chargement</div>`; pag.innerHTML = ""; }
+  if (!catState.hasContent) {
+    const stale = catState.page === 1 ? peekSection({ tab: catState.tab, api: catState.tab }) : null;
+    if (stale) { renderCatalogueGrid(stale); catState.hasContent = true; }   // affichage immédiat, rafraîchi ensuite
+    else { app.innerHTML = `<div class="loader">Chargement</div>`; pag.innerHTML = ""; }
+  }
   try {
     const json = await listApi(catState.tab, { page: catState.page });
     if (mySeq !== catState.seq) return;
