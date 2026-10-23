@@ -1,27 +1,10 @@
 /**
- * PRINCE MOVIE — Proxy CORS/HTTPS intégré au projet Vercel
- * ---------------------------------------------------------
- * Ce fichier doit être placé dans un dossier "api" à la racine de ton
- * projet Vercel (au même niveau que index.html) :
- *
- *   mon-projet/
- *   ├── index.html
- *   └── api/
- *       └── proxy.js   <-- ce fichier
- *
- * Vercel détecte automatiquement tout fichier dans /api comme une
- * fonction serverless. Une fois déployé, il sera accessible à :
- *   https://ton-site.vercel.app/api/proxy?url=...
- *
- * Comme cette fonction tourne côté serveur (pas dans le navigateur), elle
- * peut appeler l'API HTTP sans le blocage "contenu mixte" que subit le
- * navigateur sur un site HTTPS. Et comme elle est sur le même domaine que
- * ton site, il n'y a même plus besoin de CORS ni de proxys publics tiers.
- *
- * AUCUNE INSTALLATION SUPPLÉMENTAIRE : pas de compte Cloudflare, pas de
- * dépendance npm. Il suffit que ce fichier soit dans /api lors du déploiement.
+ * PRINCE MOVIE — Proxy HTTPS/CORS (fonction serverless Vercel)
+ * Emplacement OBLIGATOIRE :  <racine du projet>/api/proxy.js
+ * (à côté de index.html et vercel.json). Après déploiement, tester :
+ *   https://TON-SITE/api/proxy?url=http%3A%2F%2F51.75.118.170%3A20041%2Fapi%2Fv1%2Fmovies
+ * Si cette adresse renvoie du JSON, le proxy fonctionne.
  */
-
 const TARGET_ORIGIN = "http://51.75.118.170:20041";
 
 function rewritePlaylist(text, baseUrl) {
@@ -40,70 +23,64 @@ function rewritePlaylist(text, baseUrl) {
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Range");
+  res.setHeader("Access-Control-Expose-Headers", "Content-Range, Accept-Ranges, Content-Length");
 
-  if (req.method === "OPTIONS") {
-    res.status(204).end();
-    return;
-  }
+  if (req.method === "OPTIONS") { res.status(204).end(); return; }
 
-  const targetParam = req.query.url;
-  let targetUrl;
-  if (targetParam) {
-    // Vercel décode déjà "req.query.url" : on ne re-décode que si ce n'est pas
-    // encore une URL (évite de casser les %26, %3F... d'une URL imbriquée).
-    targetUrl = /^https?:\/\//i.test(targetParam) ? targetParam : decodeURIComponent(targetParam);
-  } else {
+  let targetUrl = req.query.url;
+  if (Array.isArray(targetUrl)) targetUrl = targetUrl[0];
+  if (!targetUrl) {
     res.status(400).json({ success: false, error: { message: "Paramètre 'url' manquant." } });
     return;
   }
-
-  // Sécurité : on n'autorise ce proxy qu'à parler à l'API attendue, pour
-  // éviter qu'il ne serve de proxy ouvert vers n'importe quel site.
+  if (!/^https?:\/\//i.test(targetUrl)) {
+    try { targetUrl = decodeURIComponent(targetUrl); } catch (e) {}
+  }
+  // Sécurité : uniquement l'API attendue (pas de proxy ouvert).
   if (!targetUrl.startsWith(TARGET_ORIGIN)) {
     res.status(403).json({ success: false, error: { message: "URL cible non autorisée." } });
     return;
   }
 
   try {
+    const headers = { Accept: "*/*", "User-Agent": "Mozilla/5.0 (PrinceMovie proxy)" };
+    if (req.headers.range) headers.Range = req.headers.range;   // lecture / avance rapide des vidéos
     const upstream = await fetch(targetUrl, {
-      // BUGFIX : ce proxy sert aussi les images du catalogue (contenu mixte
-      // HTTPS -> HTTP côté navigateur, voir index.html). Restreindre Accept
-      // à "application/json" n'était pas un problème en soi, mais autant
-      // accepter tout type de réponse puisqu'on relaie désormais aussi des
-      // images.
-      headers: { "Accept": "*/*" },
-      // Le backend HTTP est parfois lent : on laisse un peu de marge avant
-      // d'abandonner, plutôt que de dépendre uniquement du timeout du
-      // navigateur côté front.
-      signal: AbortSignal.timeout(15000),
+      method: req.method === "HEAD" ? "HEAD" : "GET",
+      headers,
+      redirect: "follow",
+      signal: AbortSignal.timeout(25000),
     });
     const contentType = upstream.headers.get("content-type") || "application/json";
     res.status(upstream.status);
     res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", /json/i.test(contentType) ? "s-maxage=60, stale-while-revalidate=300" : "public, max-age=3600");
+    for (const h of ["content-range", "accept-ranges"]) {
+      const v = upstream.headers.get(h);
+      if (v) res.setHeader(h, v);
+    }
+    if (req.method === "HEAD") { res.end(); return; }
 
-    // BUGFIX : lire une image (ou tout contenu binaire) avec .text() corrompt
-    // ses octets (décodage UTF-8 destructif) — le proxy renvoyait alors une
-    // image illisible plutôt qu'une vraie erreur. On relaie le contenu binaire
-    // tel quel via un Buffer, et on ne passe par .text() que pour le JSON/texte.
     const isPlaylist = /mpegurl/i.test(contentType) || /\.m3u8(\?|#|$)/i.test(targetUrl);
     const isTextual = /^(application\/json|text\/|application\/javascript)/i.test(contentType);
     if (isPlaylist) {
-      // Flux HLS (chaînes sport) : les segments sont référencés en http://…
-      // (contenu mixte bloqué sur un site https). On réécrit la playlist pour
-      // que chaque segment repasse lui aussi par ce proxy.
       const text = await upstream.text();
       res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
       res.send(rewritePlaylist(text, targetUrl));
     } else if (isTextual) {
-      const text = await upstream.text();
-      res.send(text);
+      res.send(await upstream.text());
     } else {
-      const buffer = Buffer.from(await upstream.arrayBuffer());
-      res.send(buffer);
+      // NB : Vercel limite une réponse de fonction à ~4,5 Mo. Les images et les
+      // petits segments passent ; un gros fichier vidéo complet, non.
+      res.send(Buffer.from(await upstream.arrayBuffer()));
     }
   } catch (err) {
-    res.status(502).json({ success: false, error: { message: "Impossible de contacter l'API source (délai dépassé ou serveur injoignable)." } });
+    const timeout = err && (err.name === "TimeoutError" || err.name === "AbortError");
+    res.status(502).json({
+      success: false,
+      error: { message: timeout ? "L'API source met trop de temps à répondre." : "Impossible de contacter l'API source (serveur éteint ou injoignable).", detail: String(err && err.message || err) },
+    });
   }
-      }
+}
