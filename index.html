@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
-<title>PRINCE MOVIE — Films, Séries & Animés en streaming</title>
+<title>PRINCE MOVIE — Animés & K-Dramas en streaming</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='g' x1='10%25' y1='0%25' x2='90%25' y2='100%25'><stop offset='0%25' stop-color='%23e0102a'/><stop offset='55%25' stop-color='%236e0a17'/><stop offset='100%25' stop-color='%231c0306'/></linearGradient></defs><rect width='200' height='200' rx='46' fill='url(%23g)'/><rect x='58' y='46' width='24' height='128' rx='10' fill='%23e8bf6f'/><path d='M82,50 L148,88 L82,126 Z' fill='%23e8bf6f'/></svg>">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -796,7 +796,6 @@ body.auth-body::after { filter: none !important; animation: none !important;
 .key-events li { padding: 6px 0; border-bottom: 1px solid #222; }
 .watch-list { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 4px; }
 .credit-line { font-size: 12px; color: var(--text-muted); margin: 10px 4px; }
-.hsrc-note { font-size: 12px; color: var(--text-muted); margin: 0 4px 10px; }
 </style>
 </head>
 <body>
@@ -1038,15 +1037,12 @@ async function apiRaw(path, params = {}) {
 // n'ont rien à voir avec une vraie panne de l'API.
 // L'API peut renvoyer le même titre plusieurs fois dans une liste : on garde
 // la première occurrence (par slug), uniquement pour les listes de titres.
-const LIST_PATH_RE = /^\/(movies|series|anime|hentai|manga|manhwa|webtoon|sport|sports|live|lives|dramas|search)$/;
+const LIST_PATH_RE = /^\/(anime|manga|manhwa|sport|sports|live|lives|dramas|search)$/;
 function dedupeResult(path, json) {
   if (!LIST_PATH_RE.test(path) || !json || !Array.isArray(json.data)) return json;
-  // Quel que soit le champ "type" renvoyé par l'API (parfois "anime"), un titre
-  // venant de /hentai doit ouvrir la fiche /hentai, sinon la lecture échoue.
-  if (path === "/hentai") json.data.forEach(it => { if (it) it.type = "hentai"; });
-  // Idem pour les lectures (manga / manhwa / webtoon) : la fiche et le lecteur
+  // Idem pour les lectures (manga / manhwa) : la fiche et le lecteur
   // doivent interroger le bon point d'accès, quel que soit le "type" renvoyé.
-  { const m = /^\/(manga|manhwa|webtoon)$/.exec(path); if (m) json.data.forEach(it => { if (it) it.type = m[1]; }); }
+  { const m = /^\/(manga|manhwa)$/.exec(path); if (m) json.data.forEach(it => { if (it) it.type = m[1]; }); }
   const seen = new Set();
   json.data = json.data.filter(it => {
     const key = it && it.slug;
@@ -1057,7 +1053,7 @@ function dedupeResult(path, json) {
   });
   return json;
 }
-// Certaines images arrivent en chemin relatif (ex. hentai : "/api/image-proxy?url=...").
+// Certaines images arrivent en chemin relatif (ex. "/api/image-proxy?url=...").
 // On les rend absolues (adresse de l'API) pour que <img> et le repli proxy fonctionnent.
 function fixImageUrls(node, depth = 0) {
   if (!node || depth > 6) return node;
@@ -1131,7 +1127,7 @@ function updateUser(patch) {
 
 /* ---------- Ma Liste ---------- */
 function getMyList() {
-  try { return JSON.parse(localStorage.getItem(MYLIST_KEY) || "[]"); }
+  try { return JSON.parse(localStorage.getItem(MYLIST_KEY) || "[]").filter(i => i && !["hentai", "webtoon", "movie", "movies", "series", "serie", "film"].includes(i.type)); }
   catch (e) { return []; }
 }
 function isInMyList(slug) { return getMyList().some(i => i.slug === slug); }
@@ -1166,35 +1162,27 @@ function getSlug(key = "slug") { return getParam(key); }
 // résultat de recherche ou une carte mène TOUJOURS à la bonne fiche.
 
 /* =========================================================
-   Résolution des endpoints "optionnels" (hentai, manga, manhwa, webtoon)
+   Résolution des endpoints "optionnels" (manga, manhwa)
    Le nom exact du point d'accès peut varier selon la version de l'API
    (singulier/pluriel...). On essaie les noms possibles dans l'ordre et on
    retient celui qui répond avec des données.
    ========================================================= */
 const ENDPOINT_CANDIDATES = {
-  hentai: ["hentai", "hentais"],
   // D'après la documentation de l'API : /webtoons (lelscanfr) et /comics?type=...
   // (MangaDex) pour manga / manhwa.
   manga: ["comics"],
   manhwa: ["comics"],
-  webtoon: ["webtoons", "webtoon"],
 };
 // Paramètres obligatoires ajoutés quand la route est partagée (/comics?type=manga).
 const COMICS_PARAMS = { manga: { type: "manga" }, manhwa: { type: "manhwa" } };
 const resolvedEndpoint = {};
 ENDPOINT_CANDIDATES.sport = ["sports"];
-// Hentai : l'API propose 3 sources (watchhentai, hentaigasm, hentaimama).
-const HENTAI_SOURCES = ["watchhentai", "hentaigasm", "hentaimama"];
-function getHentaiSource() { try { const v = localStorage.getItem("pm_hsrc"); return HENTAI_SOURCES.includes(v) ? v : "watchhentai"; } catch (e) { return "watchhentai"; } }
-function setHentaiSource(v) { try { localStorage.setItem("pm_hsrc", v); } catch (e) {} }
 
 // L'API publie sa documentation à /docs. On la lit (via le proxy du site) pour
-// repérer les vraies routes : hentai, manga, manhwa, webtoon, sport / live...
+// repérer les vraies routes : manga, manhwa, sport / live...
 const DISCOVERY_KEYWORDS = {
-  hentai: /hentai/i,
   manga: /^mangas?$|manga/i,
   manhwa: /manhwa|manhua|mawha/i,
-  webtoon: /webtoon/i,
   sport: /sport|live|match|foot|ufc|nba|nfl/i,
 };
 let discoveryPromise = null;
@@ -1248,7 +1236,6 @@ async function listApi(type, params = {}) {
     if (!arr.length) throw new Error("Aucune chaîne gratuite disponible pour le moment.");
     return { ...r, data: arr };
   }
-  if (type === "hentai") params = { source: getHentaiSource(), ...params };
   const names = endpointNames(type);
   let firstErr = null;
   for (let i = 0; i < names.length; i++) {
@@ -1278,20 +1265,16 @@ async function apiMulti(type, suffix, params = {}) {
 }
 
 const TYPE_ROUTE = {
-  movie: "film", movies: "film", film: "film",
-  series: "serie", serie: "serie",
   anime: "anime", animes: "anime",
-  hentai: "hentai", hentais: "hentai",
   manga: "manga", mangas: "manga",
   manhwa: "manhwa", manhwas: "manhwa", mawha: "manhwa",
-  webtoon: "webtoon", webtoons: "webtoon",
   sport: "sport", sports: "sport", live: "sport", lives: "sport",
   channel: "canal", manhua: "manhwa", other: "manga",
   drama: "drama", dramas: "drama",
 };
 function detailRoute(item) {
   const raw = (item && item.type ? String(item.type) : "").toLowerCase().trim();
-  return TYPE_ROUTE[raw] || TYPE_ROUTE[raw.replace(/s$/, "")] || "film";
+  return TYPE_ROUTE[raw] || TYPE_ROUTE[raw.replace(/s$/, "")] || "anime";
 }
 
 const WARN_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M10.3 3.6 1.8 18a1.6 1.6 0 0 0 1.4 2.4h17.6a1.6 1.6 0 0 0 1.4-2.4L13.7 3.6a1.6 1.6 0 0 0-2.8 0Z"/><path d="M12 16.2h.01"/></svg>`;
@@ -1380,12 +1363,12 @@ const NAV_ICONS_EXTRA = {
   tv: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="m8 3 4 4 4-4"/></svg>`,
   plus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>`,
 };
-const catTab = () => getParam("tab") || "movies";
+const catTab = () => getParam("tab") || "anime";
 const BOTTOM_NAV_ITEMS = [
   { go: "accueil", label: "Accueil", icon: NAV_ICONS.home, active: (r) => r === "accueil" },
   { go: "recherche", label: "Explorer", icon: NAV_ICONS.search, active: (r) => r === "recherche" },
-  { go: "catalogue?tab=movies", label: "Films", icon: NAV_ICONS_EXTRA.film, active: (r) => r === "film" || (r === "catalogue" && catTab() === "movies") },
-  { go: "catalogue?tab=series", label: "Séries", icon: NAV_ICONS_EXTRA.tv, active: (r) => r === "serie" || (r === "catalogue" && catTab() === "series") },
+  { go: "catalogue?tab=anime", label: "Animés", icon: NAV_ICONS_EXTRA.film, active: (r) => r === "anime" || (r === "catalogue" && catTab() === "anime") },
+  { go: "catalogue?tab=dramas", label: "K-Dramas", icon: NAV_ICONS_EXTRA.tv, active: (r) => r === "drama" || (r === "catalogue" && catTab() === "dramas") },
   { go: "maliste", label: "Ma liste", icon: NAV_ICONS_EXTRA.plus, active: (r) => r === "maliste" },
 ];
 function pillNavHtml(route) {
@@ -1498,7 +1481,7 @@ function viewIndex() {
     </header>
     <main class="welcome-hero">
       <span class="credit-pill">✦ Créé par Prince</span>
-      <h1>Films, séries, animés<br>et <em>K-dramas.</em></h1>
+      <h1>Animés, K-dramas<br>et <em>manga.</em></h1>
       <p class="welcome-sub">${loggedIn
         ? "Content de te revoir. Ton catalogue t'attend."
         : "Tout ton divertissement au même endroit.<br>Crée ton compte pour commencer à regarder."}</p>
@@ -1513,11 +1496,11 @@ function viewIndex() {
       <p class="welcome-note">Déjà inscrit ? <a onclick="nav('connexion')">Connecte-toi ici</a></p>
       `}
       <ul class="cat-chips" aria-label="Catégories">
-        <li>Films</li><li>Séries</li><li>Animés</li><li>K-Dramas</li><li>VF</li><li>VOSTFR</li>
+        <li>Animés</li><li>K-Dramas</li><li>Manga</li><li>Manhwa</li><li>VF</li><li>VOSTFR</li>
       </ul>
     </main>
     <section class="welcome-features">
-      <div class="feature"><div class="feature-icon">${AUTH_ICONS.film}</div><h3>Un catalogue complet</h3><p>Films, séries, animés et K-dramas réunis dans un seul catalogue.</p></div>
+      <div class="feature"><div class="feature-icon">${AUTH_ICONS.film}</div><h3>Un catalogue complet</h3><p>Animés, K-dramas, manga et manhwa réunis dans un seul catalogue.</p></div>
       <div class="feature"><div class="feature-icon">${AUTH_ICONS.screen}</div><h3>Sur tous tes écrans</h3><p>Regarde sur ton téléphone, ta tablette ou ton ordinateur.</p></div>
       <div class="feature"><div class="feature-icon">${AUTH_ICONS.search}</div><h3>Trouve tout en un instant</h3><p>La recherche te sort le bon titre immédiatement, VF comme VOSTFR.</p></div>
     </section>
@@ -1543,7 +1526,7 @@ function viewIndex() {
   }
   const bgEl = document.getElementById("welcomeBg");
   bgEl.innerHTML = wallHtml([]);
-  api("/movies", { page: 1 }).then(({ data }) => {
+  api("/anime", { page: 1 }).then(({ data }) => {
     const imgs = (data || []).filter(m => m && m.image).slice(0, 24);
     if (imgs.length >= 6) bgEl.innerHTML = wallHtml(imgs);
   }).catch(() => {});
@@ -1578,7 +1561,7 @@ const AUTH_ICONS = {
 function authOpen(mode) {
   document.body.classList.add("auth-body");
   const perks = [
-    [AUTH_ICONS.film, "Films, séries, animés et K-dramas"],
+    [AUTH_ICONS.film, "Animés, K-dramas, manga et manhwa"],
     [AUTH_ICONS.heart, "Ta liste, toujours avec toi"],
     [AUTH_ICONS.screen, "Sur tous tes écrans"],
   ];
@@ -1588,7 +1571,7 @@ function authOpen(mode) {
         <div class="auth-side-inner">
           <span class="kicker">PRINCE MOVIE</span>
           <h2>${mode === "signup" ? "Rejoins <br>l'aventure." : "Ravi de <br>te revoir."}</h2>
-          <p>${mode === "signup" ? "Crée ton compte en quelques secondes et lance ton premier film." : "Reprends là où tu t'étais arrêté : ton catalogue t'attend."}</p>
+          <p>${mode === "signup" ? "Crée ton compte en quelques secondes et lance ton premier épisode." : "Reprends là où tu t'étais arrêté : ton catalogue t'attend."}</p>
           <ul class="auth-perks">${perks.map(([ic, t]) => `<li><span>${ic}</span>${t}</li>`).join("")}</ul>
         </div>
       </aside>
@@ -1684,27 +1667,23 @@ function viewInscription() {
 }
 
 const HOME_SECTIONS = [
-  { key: "movies", title: "Films", tab: "movies" },
-  { key: "series", title: "Séries", tab: "series" },
   { key: "anime", title: "Animés", tab: "anime" },
   { key: "dramas", title: "K-Dramas", tab: "dramas" },
-  { key: "hentai", title: "Hentai", tab: "hentai", api: "hentai" },
   { key: "manga", title: "Manga", tab: "manga", api: "manga" },
   { key: "manhwa", title: "Manhwa", tab: "manhwa", api: "manhwa" },
-  { key: "webtoon", title: "Webtoon", tab: "webtoon", api: "webtoon" },
   { key: "sport", title: "Lives sport", tab: "sport", api: "sport" },
 ];
 
 /* ---------------------------------------------------------
    ANNONCE en haut de l'accueil (bandeau "à l'affiche").
-   - slug vide  : on annonce automatiquement le 1er film du catalogue.
-   - slug rempli: on annonce ce titre précis (type : "movies", "series",
-                  "anime" ou "dramas"), ex. { type: "movies", slug: "mon-film" }.
+   - slug vide  : on annonce automatiquement le 1er titre du catalogue.
+   - slug rempli: on annonce ce titre précis (type : "anime" ou "dramas"),
+                  ex. { type: "anime", slug: "mon-anime" }.
    - actif: false pour masquer le bandeau.
    --------------------------------------------------------- */
 const ANNONCE = {
   actif: true,
-  type: "movies",
+  type: "anime",
   slug: "",
   etiquette: "À L'AFFICHE",
   texte: "À voir dès maintenant sur PRINCE MOVIE",
@@ -1715,8 +1694,8 @@ const STAGE_DELAY_MS = 7000;   // durée d'affichage de chaque diapositive
 let stageTimer = null;
 function stopStage() { if (stageTimer) { clearInterval(stageTimer); stageTimer = null; } }
 
-const TYPE_LABEL = { film: "FILM", serie: "SÉRIE", anime: "ANIMÉ", hentai: "HENTAI", manga: "MANGA", manhwa: "MANHWA", webtoon: "WEBTOON", sport: "LIVE", canal: "LIVE", drama: "K-DRAMA" };
-function typeLabel(item) { return TYPE_LABEL[detailRoute(item)] || "FILM"; }
+const TYPE_LABEL = { anime: "ANIMÉ", manga: "MANGA", manhwa: "MANHWA", sport: "LIVE", canal: "LIVE", drama: "K-DRAMA" };
+function typeLabel(item) { return TYPE_LABEL[detailRoute(item)] || "ANIMÉ"; }
 function itemRating(item) {
   const v = Number(item && (item.rating ?? item.score ?? item.note ?? item.vote_average));
   return Number.isFinite(v) && v > 0 ? v.toFixed(1) : "";
@@ -1887,9 +1866,7 @@ function peekSection(s) {
       data = j ? channelsFromResponse(j.data).map(channelToItem) : null;
     } else {
       let j = null;
-      if (s.tab === "hentai") j = get("/hentai", { source: getHentaiSource(), page: 1 });
-      else if (s.tab === "manga" || s.tab === "manhwa") j = get("/comics", { page: 1, type: s.tab });
-      else if (s.tab === "webtoon") j = get("/webtoons", { page: 1 });
+      if (s.tab === "manga" || s.tab === "manhwa") j = get("/comics", { page: 1, type: s.tab });
       else j = get("/" + (s.api || s.tab), { page: 1 });
       if (j && Array.isArray(j.data)) {
         data = j.data;
@@ -1935,32 +1912,32 @@ async function viewAccueil() {
     const ml = rowBlock({ title: "Ma Liste", inner: myList.map(i => cardHtml(i, "row")).join("") });
     rowsEl.appendChild(ml); bindHearts(ml);
   }
-  HOME_SECTIONS.forEach(s => addSlot(s.key, { title: s.key === "movies" ? "Plus de films" : s.title, tab: s.tab }));
+  HOME_SECTIONS.forEach(s => addSlot(s.key, { title: s.key === "anime" ? "Plus d'animés" : s.title, tab: s.tab }));
 
   const paint = (s, data) => {
     loaded[s.key] = data; trackItems(data);
-    if (s.key === "movies") {
+    if (s.key === "anime") {
       const top = rowBlock({ kicker: "Tendances", title: "Le Top 10 du moment", inner: rankRowHtml(data) });
       setSlot("top", top); bindHearts(top);
       data = data.slice(10);   // les 10 premiers sont déjà dans le Top 10
-      if (!data.length) { dropSlot("movies"); return; }
+      if (!data.length) { dropSlot("anime"); return; }
     }
-    const row = rowBlock({ title: s.key === "movies" ? "Plus de films" : s.title, tab: s.tab, inner: data.map(i => cardHtml(i, "row")).join("") });
+    const row = rowBlock({ title: s.key === "anime" ? "Plus d'animés" : s.title, tab: s.tab, inner: data.map(i => cardHtml(i, "row")).join("") });
     setSlot(s.key, row); bindHearts(row);
   };
   const unavailable = (s) => {
-    if (!ENDPOINT_CANDIDATES[s.key]) { dropSlot(s.key); if (s.key === "movies") dropSlot("top"); return; }
+    if (!ENDPOINT_CANDIDATES[s.key]) { dropSlot(s.key); if (s.key === "anime") dropSlot("top"); return; }
     // Les catégories optionnelles restent visibles même si l'API ne répond pas
     setSlot(s.key, rowBlock({ title: s.title, tab: s.tab, inner: `<p style="color:var(--text-muted);padding:8px 4px">Aucun contenu reçu de l'API pour « ${escHtml(s.title)} »${failedReason[s.key] ? " (" + escHtml(failedReason[s.key]) + ")" : ""}. Touche « Tout voir » ou réessaie plus tard.</p>` }));
   };
 
-  // Annonce + carrousel : affichés dès que les films sont là (ou après 2,5 s)
+  // Annonce + carrousel : affichés dès que les animés sont là (ou après 2,5 s)
   let stageShown = false;
   const tryStage = async (force) => {
     if (stageShown || !stillOnThisPage()) return;
-    if (!Object.keys(loaded).length || (!loaded.movies && !force)) return;
+    if (!Object.keys(loaded).length || (!loaded.anime && !force)) return;
     stageShown = true;
-    const first = (loaded.movies && loaded.movies[0]) || Object.values(loaded)[0]?.[0] || null;
+    const first = (loaded.anime && loaded.anime[0]) || Object.values(loaded)[0]?.[0] || null;
     const announceItem = await resolveAnnonce(first);
     if (!stillOnThisPage()) return;
     showAnnonce(announceItem);
@@ -1998,8 +1975,8 @@ async function viewAccueil() {
     }
     tryStage(false);
   };
-  // Les catégories principales d'abord ; les autres (hentai, manga, manhwa,
-  // webtoon, sport) ensuite, pour ne pas surcharger l'API et le proxy.
+  // Les catégories principales d'abord ; les autres (manga, manhwa,
+  // sport) ensuite, pour ne pas surcharger l'API et le proxy.
   const core = HOME_SECTIONS.filter(s => !ENDPOINT_CANDIDATES[s.key]);
   const extra = HOME_SECTIONS.filter(s => ENDPOINT_CANDIDATES[s.key]);
   setTimeout(() => tryStage(true), 2500);
@@ -2019,17 +1996,12 @@ async function viewAccueil() {
   }
 }
 
-const CATALOGUE_TITLES = { movies: "Films", series: "Séries", anime: "Animés", dramas: "K-Dramas", hentai: "Hentai", manga: "Manga", manhwa: "Manhwa", webtoon: "Webtoon", sport: "Lives sport" };
-// L'onglet "Hentai" réutilise l'API des animés (endpoint /anime) et affiche
-// la date de sortie de chaque titre. Pour changer le nom de l'onglet, il
-// suffit de modifier le libellé ci-dessus ("Hentai").
-const CATALOGUE_API_PATH = { hentai: "hentai" };
-function hentaiTag(i) { return i && i.censored === true ? "Censuré" : (i && i.censored === false ? "Non censuré" : releaseLabel(i)); }
+const CATALOGUE_TITLES = { anime: "Animés", dramas: "K-Dramas", manga: "Manga", manhwa: "Manhwa", sport: "Lives sport" };
 function releaseLabel(item) {
   const raw = item && (item.release_date || item.date || item.year);
   return raw ? String(raw) : "";
 }
-let catState = { tab: "movies", page: 1, hasContent: false, seq: 0 };
+let catState = { tab: "anime", page: 1, hasContent: false, seq: 0 };
 
 function viewCatalogue() {
   document.getElementById("hero").innerHTML = "";
@@ -2037,7 +2009,7 @@ function viewCatalogue() {
   document.body.classList.remove("welcome-body");
   const validTabs = Object.keys(CATALOGUE_TITLES);
   const tabParam = getParam("tab");
-  catState = { tab: validTabs.includes(tabParam) ? tabParam : "movies", page: 1, hasContent: false, seq: catState.seq };
+  catState = { tab: validTabs.includes(tabParam) ? tabParam : "anime", page: 1, hasContent: false, seq: catState.seq };
 
   document.getElementById("app").innerHTML = `
     <main class="has-chips">
@@ -2070,13 +2042,7 @@ async function loadCatalogueTab() {
   const pag = document.getElementById("catPagination");
   if (catState.tab === "sport") return loadSportTab();
   const sub = document.getElementById("catSub");
-  if (sub) {
-    if (catState.tab === "hentai") {
-      const cur = getHentaiSource();
-      sub.innerHTML = `<div class="chip-row sub-chips">${HENTAI_SOURCES.map(x => `<button type="button" class="chip ${x === cur ? "active" : ""}" data-src="${x}">${x}</button>`).join("")}</div>`;
-      sub.querySelectorAll(".chip").forEach(b => { b.onclick = () => { setHentaiSource(b.dataset.src); catState.page = 1; catState.hasContent = false; loadCatalogueTab(); }; });
-    } else sub.innerHTML = "";
-  }
+  if (sub) sub.innerHTML = "";
   const mySeq = ++catState.seq;
   if (!catState.hasContent) {
     const stale = catState.page === 1 ? peekSection({ tab: catState.tab, api: catState.tab }) : null;
@@ -2107,17 +2073,7 @@ function renderCatalogueGrid(items) {
   const app = document.getElementById("catApp");
   if (!items || !items.length) { app.innerHTML = "<p>Aucun résultat.</p>"; return; }
   trackItems(items);
-  const showDates = catState.tab === "hentai";
-  app.innerHTML = `<div class="grid">` + items.map(i => {
-    let html = cardHtml(i, "grid");
-    const rel = showDates ? hentaiTag(i) : "";
-    if (rel) {
-      // on glisse la date de sortie juste avant la fermeture du lien de la carte
-      const k = html.lastIndexOf("</a>");
-      if (k !== -1) html = html.slice(0, k) + `<span class="card-date">${escHtml(rel)}</span>` + html.slice(k);
-    }
-    return html;
-  }).join("") + `</div>`;
+  app.innerHTML = `<div class="grid">` + items.map(i => cardHtml(i, "grid")).join("") + `</div>`;
   bindHearts(app);
 }
 function renderCataloguePagination(meta) {
@@ -2142,7 +2098,7 @@ function viewRecherche() {
       <div class="search-hero">
         <div class="search-box search-box-lg">
           <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
-          <input id="searchInput" type="text" placeholder="Titres, animés, séries..." value="${q.replace(/"/g, "&quot;")}">
+          <input id="searchInput" type="text" placeholder="Titres, animés, K-dramas..." value="${q.replace(/"/g, "&quot;")}">
         </div>
       </div>
       <h1 class="section-title" id="title">Recherche</h1>
@@ -2170,11 +2126,11 @@ async function loadSearch(q) {
   titleEl.textContent = `Résultats pour « ${q} »`;
   app.innerHTML = `<div class="loader">Chargement</div>`;
   try {
-    // L'API de recherche couvre films, séries, animés et K-dramas ; les manga /
+    // L'API de recherche couvre aussi films et séries (ignorés ici), animés et K-dramas ; les manga /
     // manhwa se cherchent via /comics?q=. On fusionne les deux.
     const [mainRes, comicsRes] = await Promise.allSettled([api("/search", { q }), apiRaw("/comics", { q, per_page: 12 })]);
     if (mainRes.status === "rejected" && comicsRes.status === "rejected") throw mainRes.reason;
-    const data = mainRes.status === "fulfilled" && Array.isArray(mainRes.value.data) ? [...mainRes.value.data] : [];
+    const data = mainRes.status === "fulfilled" && Array.isArray(mainRes.value.data) ? mainRes.value.data.filter(i => i && i.type !== "movie" && i.type !== "series") : [];
     if (comicsRes.status === "fulfilled" && Array.isArray(comicsRes.value.data)) {
       fixImageUrls(comicsRes.value.data);
       comicsRes.value.data.forEach(c => { if (c && c.slug) { c.type = (c.type === "manhwa" || c.type === "manhua" || c.is_webtoon) ? "manhwa" : "manga"; data.push(c); } });
@@ -2189,16 +2145,7 @@ async function loadSearch(q) {
   }
 }
 
-/* ----- Fiches détail (film / série / animé / drama) ----- */
-
-// BUGFIX : le bouton "Regarder" ne s'affichait plus dès que le champ
-// "first_episode_id" était absent de la réponse API (variable selon les
-// titres). On essaie plusieurs noms de champ possibles, et si aucun n'est
-// présent on route quand même vers le lecteur avec le "slug" : le lecteur
-// sait alors interroger l'endpoint "/servers" du titre directement.
-function resolvePlayId(obj) {
-  return obj.first_episode_id || obj.episode_id || obj.video_id || obj.play_id || null;
-}
+/* ----- Fiches détail (animé / drama) ----- */
 
 function detailChrome() { document.getElementById("hero").innerHTML = ""; document.getElementById("hero").className = ""; document.body.classList.remove("welcome-body"); }
 
@@ -2275,7 +2222,7 @@ function episodesBySeasonHtml(episodes, hrefBuilder) {
   const uid = "eplist_" + Math.random().toString(36).slice(2, 8);
 
   const renderList = (key) => `<div class="ep-rows">${(seasons[key] || []).map(ep => `
-    <a class="ep-row" onclick="nav('${hrefBuilder(ep)}')">
+    <a class="ep-row" onclick="nav('${String(hrefBuilder(ep)).replace(/'/g, "%27")}')">
       <div class="ep-num">${ep.number ?? "•"}</div>
       <div class="ep-info">
         <div class="ep-title">${ep.title || "Épisode " + ep.number}</div>
@@ -2298,77 +2245,6 @@ function episodesBySeasonHtml(episodes, hrefBuilder) {
       ${selectHtml}
     </div>
     <div id="${uid}_list">${renderList(seasonKeys[0])}</div>`;
-}
-
-async function viewFilm() {
-  detailChrome();
-  const app = document.getElementById("app");
-  app.innerHTML = `<main><div class="loader">Chargement</div></main>`;
-  const slug = getSlug();
-  if (!slug) { showError("Aucun film sélectionné. Retourne au catalogue pour en choisir un."); return; }
-  try {
-    const { data: m } = await api(`/movies/${slug}`);
-    if (m.type === "series") { nav(`serie?slug=${slug}`); return; }
-    document.title = `${m.title} — PRINCE MOVIE`;
-    const playId = resolvePlayId(m);
-    const playHref = `lecteur?${playId ? `id=${encodeURIComponent(playId)}&` : ""}type=movies&slug=${encodeURIComponent(m.slug)}&title=${encodeURIComponent(m.title)}`;
-    document.getElementById("app").innerHTML = `<main>
-      ${detailHeroHtml({
-        image: m.image, title: m.title, year: m.year,
-        badge: m.version ? { cls: cardBadgeClass(m.version), label: m.version } : null,
-        tags: [...(m.status ? [m.status] : []), ...(m.genres || [])],
-        synopsis: m.synopsis, playHref, playLabel: "Regarder maintenant",
-      })}
-      ${m.related && m.related.length ? `
-        <div class="detail-body">
-          <h1 class="section-title">Titres similaires</h1>
-          <div class="similar-row">
-            ${m.related.map(r => `
-              <div class="row-card" title="${r.title}">
-                <a onclick="nav('${r.type === "series" ? "serie" : "film"}?slug=${encodeURIComponent(r.slug)}')">
-                  <img src="${r.image}" alt="${r.title}" loading="lazy"
-                       data-orig="${encodeURIComponent(r.image)}" data-retried="0" onerror="imgFallback(this)">
-                  <span class="badge ${cardBadgeClass(r.version)} row-card-badge">${r.version || ""}</span>
-                </a>
-              </div>`).join("")}
-          </div>
-        </div>` : ""}
-    </main>`;
-    loadBackdrop(m.image);
-  } catch (e) {
-    console.error("Erreur :", e);
-    if (e.code === "wrong_type") nav(`serie?slug=${slug}`);
-    else showError(e.message);
-  }
-}
-
-async function viewSerie() {
-  detailChrome();
-  document.getElementById("app").innerHTML = `<main><div class="loader">Chargement</div></main>`;
-  const slug = getSlug();
-  if (!slug) { showError("Aucune série sélectionnée."); return; }
-  try {
-    const { data: s } = await api(`/series/${slug}`);
-    if (s.type === "movie") { nav(`film?slug=${slug}`); return; }
-    document.title = `${s.title} — PRINCE MOVIE`;
-    const playId = resolvePlayId(s);
-    const playHref = `lecteur?${playId ? `id=${encodeURIComponent(playId)}&` : ""}type=series&slug=${encodeURIComponent(s.slug)}&title=${encodeURIComponent(s.title)}`;
-    document.getElementById("app").innerHTML = `<main>
-      ${detailHeroHtml({
-        image: s.image, title: s.title, year: s.year,
-        badge: s.version ? { cls: cardBadgeClass(s.version), label: s.version } : null,
-        tags: [...(s.status ? [s.status] : []), ...(s.genres || [])],
-        synopsis: s.synopsis, playHref, playLabel: "Voir l'épisode 1",
-      })}
-      <div class="detail-body">
-        ${episodesBySeasonHtml(normalizeEpisodesData(s), ep => `lecteur?id=${encodeURIComponent(ep.episode_id)}&type=series&slug=${encodeURIComponent(s.slug)}&title=${encodeURIComponent(s.title + " - S" + ep.season + "E" + ep.number)}`)}
-      </div>
-    </main>`;
-    loadBackdrop(s.image);
-  } catch (e) {
-    if (e.code === "wrong_type") nav(`film?slug=${slug}`);
-    else showError(e.message);
-  }
 }
 
 async function viewAnime() {
@@ -2395,41 +2271,8 @@ async function viewAnime() {
   } catch (e) { showError(e.message); }
 }
 
-async function viewHentai() {
-  detailChrome();
-  document.getElementById("app").innerHTML = `<main><div class="loader">Chargement</div></main>`;
-  const slug = getSlug();
-  if (!slug) { showError("Aucun titre sélectionné."); return; }
-  const hsrc = getParam("source") || getHentaiSource();
-  try {
-    let a;
-    try { ({ data: a } = await apiMulti("hentai", `/${slug}`, { source: hsrc })); }
-    catch (e1) {
-      try { ({ data: a } = await api(`/anime/${slug}`)); }   // repli : certaines versions de l'API servent ces titres via /anime
-      catch (e2) { throw e1; }
-    }
-    document.title = `${a.title} — PRINCE MOVIE`;
-    const hEpisodes = normalizeEpisodesData(a);
-    const hFirstId = a.first_episode_id || epIdOf(hEpisodes[0]);
-    const animePlayHref = hFirstId ? `lecteur?type=hentai&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(hFirstId)}&source=${encodeURIComponent(a.source || hsrc)}&title=${encodeURIComponent(a.title)}` : null;
-    document.getElementById("app").innerHTML = `<main>
-      ${detailHeroHtml({
-        image: a.image, title: a.title, year: a.year,
-        badge: a.version ? { cls: cardBadgeClass(a.version), label: a.version } : null,
-        tags: [...(a.status ? [a.status] : []), ...(a.genres || [])],
-        synopsis: a.synopsis, playHref: animePlayHref, playLabel: "Voir l'épisode 1",
-      })}
-      <div class="detail-body">
-        ${episodesBySeasonHtml(hEpisodes, ep => `lecteur?type=hentai&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(epIdOf(ep))}&source=${encodeURIComponent(a.source || hsrc)}&title=${encodeURIComponent(a.title + " - " + (ep.title || ep.number))}`)}
-      </div>
-    </main>`;
-    loadBackdrop(a.image);
-  } catch (e) { showError(e.message); }
-}
-
-
 /* ----- Manga / Manhwa / Webtoon : fiche + lecteur de chapitres ----- */
-const COMIC_LABEL = { manga: "Manga", manhwa: "Manhwa", webtoon: "Webtoon" };
+const COMIC_LABEL = { manga: "Manga", manhwa: "Manhwa" };
 function creditHtml(a) {
   return a && a.credits && a.credits.source
     ? `<p class="credit-line">Source : ${a.credits.source_url ? `<a href="${escHtml(a.credits.source_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">${escHtml(a.credits.source)}</a>` : escHtml(a.credits.source)}</p>` : "";
@@ -2465,7 +2308,6 @@ async function fetchChapterPages(type, slug, chapter) {
   for (const n of endpointNames(type)) {
     // Routes documentées par l'API : d'abord les bonnes, puis des variantes de secours.
     if (n === "comics") attempts.push([`/comics/chapters/${c}/pages`, {}]);
-    if (n === "webtoons") attempts.push([`/webtoons/${s}/pages`, { chapter }]);
     attempts.push(
       [`/${n}/${s}/chapters/${c}`, {}],
       [`/${n}/${s}/chapter/${c}`, {}],
@@ -2511,7 +2353,7 @@ async function viewComic(type) {
       <div class="detail-body">
         ${creditHtml(a)}
         ${chapters.length ? `<div class="ep-rows">${chapters.map(c => `
-          <a class="ep-row" onclick="nav('${href(c)}')">
+          <a class="ep-row" onclick="nav('${String(href(c)).replace(/'/g, "%27")}')">
             <div class="ep-num">${escHtml(c.number)}</div>
             <div class="ep-info"><div class="ep-title">${escHtml(c.title)}</div></div>
             <div class="ep-play">${PLAY_ICON_SVG}</div>
@@ -2523,7 +2365,6 @@ async function viewComic(type) {
 }
 const viewManga = () => viewComic("manga");
 const viewManhwa = () => viewComic("manhwa");
-const viewWebtoon = () => viewComic("webtoon");
 // Sport / lives : pas de fiche détaillée, on ouvre directement le lecteur.
 function viewSport() { nav("catalogue?tab=sport"); }
 
@@ -2557,7 +2398,7 @@ async function viewLire() {
       const box = document.getElementById("readerNav");
       if (box && location.hash === startHash && idx !== -1) {
         const prev = sorted[idx - 1], next = sorted[idx + 1];
-        box.innerHTML = `${prev ? `<a class="btn-outline" onclick="nav('${go(prev)}')">← Précédent</a>` : "<span></span>"}${next ? `<a class="btn" onclick="nav('${go(next)}')">Suivant →</a>` : "<span></span>"}`;
+        box.innerHTML = `${prev ? `<a class="btn-outline" onclick="nav('${String(go(prev)).replace(/'/g, "%27")}')">← Précédent</a>` : "<span></span>"}${next ? `<a class="btn" onclick="nav('${String(go(next)).replace(/'/g, "%27")}')">Suivant →</a>` : "<span></span>"}`;
       }
     } catch (e) { console.error("Navigation entre chapitres :", e); }
   } catch (e) { showError(e.message, `catalogue?tab=${type}`); }
@@ -2817,8 +2658,6 @@ async function viewLecteur() {
   const type = getParam("type");
   const slug = getParam("slug");
   const episode = getParam("episode");
-  const hsource = getParam("source");
-  const srvExtra = type === "hentai" ? { source: hsource || getHentaiSource() } : {};
   const title = getParam("title") || "Lecture";
   document.title = `${title} — PRINCE MOVIE`;
   document.getElementById("app").innerHTML = `<main>
@@ -2835,16 +2674,11 @@ async function viewLecteur() {
   let servers = [];
   try {
     let data;
-    if (type === "hentai" || type === "anime" || type === "dramas") {
-      // CORRECTIF : on essaie TOUTES les routes possibles, dans l'ordre, et on
-      // s'arrête à la première qui renvoie au moins un serveur. Avant, une
-      // erreur sur /hentai coupait court et le repli /anime n'était jamais
-      // tenté correctement ; la route générique /episodes/<id>/servers
-      // (celle des séries) n'était pas essayée du tout.
+    if (type === "anime" || type === "dramas") {
+      // On essaie les routes possibles dans l'ordre et on s'arrête à la
+      // première qui renvoie au moins un serveur.
       const attempts = [
-        ...endpointNames(type).map(n => [`/${n}/${slug}/servers`, () => fetchServers(`/${n}/${slug}/servers`, episode, srvExtra)]),
-        ...(type === "hentai" ? [[`/anime/${slug}/servers`, () => fetchServers(`/anime/${slug}/servers`, episode)]] : []),
-        [`/episodes/${episode}/servers`, async () => { const r = await api(`/episodes/${episode}/servers`); return r && r.data; }],
+        ...endpointNames(type).map(n => [`/${n}/${slug}/servers`, () => fetchServers(`/${n}/${slug}/servers`, episode)]),
       ];
       const failures = [];
       for (const [label, run] of attempts) {
@@ -2860,20 +2694,6 @@ async function viewLecteur() {
         console.error(`Lecteur ${type} — toutes les routes ont échoué :`, failures);
         throw new Error("Aucun serveur trouvé pour cet épisode.<br><small style=\"opacity:.7\">" + failures.map(escHtml).join("<br>") + "</small>");
       }
-    } else if (id) {
-      // BUGFIX : si l'id d'épisode fourni échoue (mauvais champ côté fiche
-      // film/série), on retombe sur l'endpoint "/servers" du titre lui-même.
-      try {
-        ({ data } = await api(`/episodes/${id}/servers`));
-      } catch (e) {
-        if (slug && (type === "movies" || type === "series")) {
-          ({ data } = await api(`/${type}/${slug}/servers`));
-        } else {
-          throw e;
-        }
-      }
-    } else if (slug && (type === "movies" || type === "series")) {
-      ({ data } = await api(`/${type}/${slug}/servers`));
     } else {
       throw new Error("Aucun épisode spécifié.");
     }
@@ -2885,7 +2705,7 @@ async function viewLecteur() {
     }
     renderServerTabs(servers);
     switchServer(0, servers);
-    if (slug && ["series", "anime", "dramas", "hentai"].includes(type)) setupEpisodeNav(type, slug, episode || id, title);
+    if (slug && ["anime", "dramas"].includes(type)) setupEpisodeNav(type, slug, episode || id, title);
   } catch (e) {
     document.getElementById("player").innerHTML = `<div class="error-box"><h2>😕 Erreur</h2><p>${e.message}</p><p style="margin-top:10px"><a class="btn" onclick="nav('diagnostic')">Lancer le diagnostic</a></p></div>`;
   }
@@ -2895,8 +2715,7 @@ async function viewLecteur() {
 async function setupEpisodeNav(type, slug, current, currentTitle) {
   const startHash = location.hash;
   try {
-    const hs = type === "hentai" ? (getParam("source") || getHentaiSource()) : "";
-    const { data: d } = await apiMulti(type, `/${encodeURIComponent(slug)}`, hs ? { source: hs } : {});
+    const { data: d } = await apiMulti(type, `/${encodeURIComponent(slug)}`);
     if (location.hash !== startHash) return;
     const list = normalizeEpisodesData(d);
     if (list.length < 2) return;
@@ -2906,15 +2725,14 @@ async function setupEpisodeNav(type, slug, current, currentTitle) {
     const idx = sorted.findIndex(e => String(epIdOf(e)) === String(current));
     if (idx === -1) return;
     const base = String(currentTitle || d.title || "").split(" - ")[0] || d.title || "";
-    const href = (ep) => type === "series"
-      ? `lecteur?id=${encodeURIComponent(epIdOf(ep))}&type=series&slug=${encodeURIComponent(slug)}&title=${encodeURIComponent((d.title || base) + " - S" + (ep.season || 1) + "E" + ep.number)}`
-      : `lecteur?type=${type}&slug=${encodeURIComponent(slug)}&episode=${encodeURIComponent(epIdOf(ep))}${hs ? "&source=" + encodeURIComponent(hs) : ""}&title=${encodeURIComponent((d.title || base) + " - " + (ep.title || ep.number))}`;
+    const href = (ep) =>
+      `lecteur?type=${type}&slug=${encodeURIComponent(slug)}&episode=${encodeURIComponent(epIdOf(ep))}&title=${encodeURIComponent((d.title || base) + " - " + (ep.title || ep.number))}`;
     const prev = sorted[idx - 1], next = sorted[idx + 1];
     window.__pmNextHref = next ? href(next) : null;
     const box = document.getElementById("epNav");
     if (box) box.innerHTML =
-      `${prev ? `<a class="btn-outline" onclick="nav('${href(prev)}')">← Épisode précédent</a>` : "<span></span>"}` +
-      `${next ? `<a class="btn" onclick="nav('${href(next)}')">Épisode suivant →</a>` : "<span></span>"}`;
+      `${prev ? `<a class="btn-outline" onclick="nav('${String(href(prev)).replace(/'/g, "%27")}')">← Épisode précédent</a>` : "<span></span>"}` +
+      `${next ? `<a class="btn" onclick="nav('${String(href(next)).replace(/'/g, "%27")}')">Épisode suivant →</a>` : "<span></span>"}`;
   } catch (e) { console.error("Navigation entre épisodes :", e); }
 }
 // Titres similaires sous le lecteur : on utilise "related" de la fiche si
@@ -2927,7 +2745,7 @@ async function loadSimilar(type, slug) {
     box.innerHTML = html;
     return box;
   };
-  if (!type || !slug || !["movies", "series", "anime", "hentai", "manga", "manhwa", "webtoon", "dramas"].includes(type)) return;
+  if (!type || !slug || !["anime", "manga", "manhwa", "dramas"].includes(type)) return;
   let items = [];
   try {
     const { data } = await apiMulti(type, `/${slug}`);
@@ -3028,7 +2846,7 @@ function switchServer(i, servers, newMode) {
       // Serveur suivant automatiquement s'il y en a un (sinon on affiche l'erreur).
       if (i + 1 < (servers || []).length) { switchServer(i + 1, servers); return; }
       const code = video.error ? video.error.code : "?";
-      player.innerHTML = `<div class="error-box"><p>Cette vidéo ne peut pas être lue ici.</p><p style="font-size:12px;opacity:.7">Essaie un autre serveur, ou une autre source hentai (boutons dans le catalogue).</p><p style="font-size:12px;opacity:.7">Hôte : ${escHtml(videoHost)} · code ${code}</p><p style="margin-top:10px"><a class="btn" onclick="pmIframeFallback(${i})">Essayer le lecteur du navigateur</a></p></div>`;
+      player.innerHTML = `<div class="error-box"><p>Cette vidéo ne peut pas être lue ici.</p><p style="font-size:12px;opacity:.7">Essaie un autre serveur.</p><p style="font-size:12px;opacity:.7">Hôte : ${escHtml(videoHost)} · code ${code}</p><p style="margin-top:10px"><a class="btn" onclick="pmIframeFallback(${i})">Essayer le lecteur du navigateur</a></p></div>`;
     };
     if (/\.m3u8(\?|#|$)/i.test(originalLink) && !video.canPlayType("application/vnd.apple.mpegurl")) {
       loadHlsLib().then((Hls) => {
@@ -3078,7 +2896,7 @@ function renderMaliste() {
   const app = document.getElementById("mlApp");
   const list = getMyList();
   if (!list.length) {
-    app.innerHTML = `<div class="error-box"><h2>♡ Liste vide</h2><p>Appuie sur le cœur d'un film ou d'une série pour l'ajouter ici.</p><a class="btn" onclick="nav('catalogue')">Parcourir le catalogue</a></div>`;
+    app.innerHTML = `<div class="error-box"><h2>♡ Liste vide</h2><p>Appuie sur le cœur d'un titre pour l'ajouter ici.</p><a class="btn" onclick="nav('catalogue')">Parcourir le catalogue</a></div>`;
     return;
   }
   trackItems(list);
@@ -3224,7 +3042,7 @@ async function viewDiagnostic() {
   const ms = (t) => Math.round(performance.now() - t) + " ms";
   add(true, "Base de l'API", API_BASE);
   add(true, "Page en HTTPS", location.protocol === "https:" ? "oui (le proxy /api/proxy est nécessaire)" : "non");
-  const types = ["movies", "series", "anime", "hentai", "manga", "manhwa", "webtoon", "dramas"];
+  const types = ["anime", "manga", "manhwa", "dramas"];
   for (const type of types) {
     let first = null;
     let t = t0();
@@ -3241,7 +3059,7 @@ async function viewDiagnostic() {
       const eps = normalizeEpisodesData(detail || {});
       add(!!detail, `Fiche /${type}/<slug>`, `${ms(t)}, épisodes : ${eps.length}, first_episode_id : ${detail.first_episode_id ? "oui" : "non"}` + (eps[0] ? `, id épisode : ${Object.keys(eps[0]).filter(k => /id|slug/i.test(k)).join("/") || "aucun champ id"}` : ""));
     } catch (e) { add(false, `Fiche /${type}/<slug>`, e.message); continue; }
-    if (["anime", "hentai", "dramas"].includes(type)) {
+    if (["anime", "dramas"].includes(type)) {
       const eps = normalizeEpisodesData(detail || {});
       const epId = detail.first_episode_id || epIdOf(eps[0]);
       if (!epId) { add(false, `Serveurs /${type}`, "aucun identifiant d'épisode trouvé dans la fiche"); continue; }
@@ -3253,19 +3071,6 @@ async function viewDiagnostic() {
         const http = servers.filter(sv => String(sv.server_link).startsWith("http://")).length;
         add(servers.length > 0, `Serveurs /${type}`, `${servers.length} serveur(s), ${ms(t)}, hôtes : ${hosts.join(", ") || "—"}, type : ${kinds.join(" + ") || "—"}` + (http ? `, ${http} en http (converti en https)` : ""));
       } catch (e) { add(false, `Serveurs /${type}`, e.message); }
-      if (type === "hentai") {   // repli : ces titres sont-ils aussi servis par /anime ?
-        t = t0();
-        try {
-          const servers = await fetchServers(`/anime/${first.slug}/servers`, epId);
-          add(servers.length > 0, "Repli /anime/<slug>/servers", `${servers.length} serveur(s), ${ms(t)}`);
-        } catch (e) { add(false, "Repli /anime/<slug>/servers", e.message); }
-      }
-    } else if (type === "movies") {
-      t = t0();
-      try {
-        const { data: servers } = await api(`/movies/${first.slug}/servers`);
-        add(Array.isArray(servers) && servers.length > 0, "Serveurs /movies", `${(servers || []).length} serveur(s), ${ms(t)}, hôtes : ${[...new Set((servers || []).map(sv => host(sv.server_link)))].join(", ")}`);
-      } catch (e) { add(false, "Serveurs /movies", e.message); }
     }
   }
   document.querySelector(".lang-hint").textContent = "Test terminé.";
@@ -3280,8 +3085,8 @@ const ROUTES = {
   // option du site — tout pointe maintenant vers "catalogue" (Parcourir),
   // y compris les vieux liens/favoris qui pointeraient encore vers #/accueil.
   accueil: viewAccueil, catalogue: viewCatalogue, recherche: viewRecherche,
-  film: viewFilm, serie: viewSerie, anime: viewAnime, hentai: viewHentai, drama: viewDrama,
-  manga: viewManga, manhwa: viewManhwa, webtoon: viewWebtoon, sport: viewSport, canal: viewCanal, match: viewMatch, lire: viewLire,
+  anime: viewAnime, drama: viewDrama,
+  manga: viewManga, manhwa: viewManhwa, sport: viewSport, canal: viewCanal, match: viewMatch, lire: viewLire,
   lecteur: viewLecteur, maliste: viewMaliste, parametres: viewParametres, diagnostic: viewDiagnostic,
 };
 
