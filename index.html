@@ -2372,6 +2372,49 @@ function episodesBySeasonHtml(episodes, hrefBuilder) {
     <div id="${uid}_list">${renderList(seasonKeys[0])}</div>`;
 }
 
+
+// Résolveur de fiche tolérant : l'API peut répondre "No movie found for slug ..." alors que
+// ce slug vient d'une de ses propres listes (mauvais type, autre source, slug légèrement
+// différent). On essaie : (1) la route prévue, avec puis sans "source" ; (2) les autres
+// types (film / série / animé / drama) ; (3) la recherche par titre. Retourne { data, route }.
+const DETAIL_TYPES = { movies: "film", series: "serie", anime: "anime", dramas: "drama" };
+function isNotFoundErr(e) {
+  return !!e && (e.code === "not_found" || e.code === "wrong_type" || /no .* found|not found|introuvable/i.test(e.message || ""));
+}
+async function resolveDetail(type, slug, source) {
+  let firstErr = null;
+  const tryOne = async (t, s, withSource) => {
+    const params = withSource && source ? { source } : {};
+    const { data } = await api(`/${t}/${encURI(s)}`, params);
+    if (!data || typeof data !== "object") throw new Error("Fiche vide.");
+    return data;
+  };
+  // 1) route prévue (avec la source si on en a une, puis sans)
+  for (const withSource of (source ? [true, false] : [false])) {
+    try { return { data: await tryOne(type, slug, withSource), route: DETAIL_TYPES[type] }; }
+    catch (e) { if (!firstErr) firstErr = e; if (!isNotFoundErr(e)) throw e; }
+  }
+  // 2) autres types
+  for (const t of Object.keys(DETAIL_TYPES).filter(t => t !== type)) {
+    try { return { data: await tryOne(t, slug, false), route: DETAIL_TYPES[t] }; }
+    catch (e) { if (!isNotFoundErr(e)) break; }
+  }
+  // 3) recherche par titre (le slug sans suffixe de langue), on cherche le même slug ou le plus proche
+  try {
+    const q = String(slug).replace(/-(vf|vostfr|vo|multi|fr)$/i, "").replace(/-/g, " ").trim();
+    const { data: res } = await api("/search", { q });
+    const list = Array.isArray(res) ? res : [];
+    const norm = (s) => String(s || "").toLowerCase();
+    const hit = list.find(i => norm(i.slug) === norm(slug))
+      || list.find(i => norm(i.slug).startsWith(norm(slug).replace(/-(vf|vostfr|vo|multi|fr)$/i, "")));
+    if (hit && hit.slug) {
+      const t = ({ movie: "movies", movies: "movies", film: "movies", series: "series", serie: "series", anime: "anime", drama: "dramas", dramas: "dramas" })[String(hit.type || "").toLowerCase()] || type;
+      return { data: await tryOne(t, hit.slug, false), route: DETAIL_TYPES[t] };
+    }
+  } catch (e) { /* on retombe sur l'erreur d'origine */ }
+  throw firstErr || new Error("Fiche introuvable.");
+}
+
 async function viewFilm() {
   detailChrome();
   const app = document.getElementById("app");
@@ -2379,8 +2422,9 @@ async function viewFilm() {
   const slug = getSlug();
   if (!slug) { showError("Aucun film sélectionné. Retourne au catalogue pour en choisir un."); return; }
   try {
-    const { data: m } = await api(`/movies/${slug}`);
-    if (m.type === "series") { nav(`serie?slug=${slug}`); return; }
+    const { data: m, route } = await resolveDetail("movies", slug, getParam("source"));
+    if (route && route !== "film") { nav(`${route}?slug=${encURI(m.slug || slug)}`); return; }
+    if (m.type === "series") { nav(`serie?slug=${encURI(m.slug || slug)}`); return; }
     document.title = `${m.title} — PRINCE MOVIE`;
     const playId = resolvePlayId(m);
     const playHref = `lecteur?${playId ? `id=${encURI(playId)}&` : ""}type=movies&slug=${encURI(m.slug)}&title=${encURI(m.title)}`;
@@ -2420,8 +2464,9 @@ async function viewSerie() {
   const slug = getSlug();
   if (!slug) { showError("Aucune série sélectionnée."); return; }
   try {
-    const { data: s } = await api(`/series/${slug}`);
-    if (s.type === "movie") { nav(`film?slug=${slug}`); return; }
+    const { data: s, route } = await resolveDetail("series", slug, getParam("source"));
+    if (route && route !== "serie") { nav(`${route}?slug=${encURI(s.slug || slug)}`); return; }
+    if (s.type === "movie") { nav(`film?slug=${encURI(s.slug || slug)}`); return; }
     document.title = `${s.title} — PRINCE MOVIE`;
     const playId = resolvePlayId(s);
     const playHref = `lecteur?${playId ? `id=${encURI(playId)}&` : ""}type=series&slug=${encURI(s.slug)}&title=${encURI(s.title)}`;
