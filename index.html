@@ -839,6 +839,9 @@ body.auth-body::after { filter: none !important; animation: none !important;
 // Anti-pubs : la page n'ouvre jamais de fenêtre publicitaire par script.
 window.open = function (url) { console.warn("Pop-up bloqué :", url); return null; };
 
+// Comme encodeURIComponent, mais encode aussi ' ( ) ! * : ces caractères cassaient
+// les attributs onclick="nav('...')" quand un titre en contenait (ex. "L'Attaque").
+function encURI(v) { return encodeURIComponent(v).replace(/[!'()*]/g, c => "%" + c.charCodeAt(0).toString(16).toUpperCase()); }
 const API_BASE = "http://51.75.118.170:20041/api/v1";
 
 // Proxy interne, servi par ton propre projet Vercel (fonction serverless
@@ -929,8 +932,30 @@ class Semaphore {
   release() { this.count--; const next = this.queue.shift(); if (next) next(); }
 }
 const proxySemaphore = new Semaphore(4);
+// Le proxy interne passait sans limite : 8-9 requêtes d'un coup sur l'accueil saturaient
+// l'API (une seule machine qui interroge des sources externes) et plus rien ne chargeait.
+const internalSemaphore = new Semaphore(4);
 
+// BUGFIX (page écrasée / erreur après changement de page) : si on quitte une page pendant
+// qu'elle charge, sa réponse arrivait plus tard et s'affichait par-dessus la page
+// actuelle. Chaque changement de page incrémente "navEpoch" ; une réponse qui arrive
+// après coup ne reprend jamais le code de l'ancienne page (promesse jamais résolue), et
+// les requêtes en cours sont annulées pour ne pas surcharger l'API.
+let navEpoch = 0;
+const inflightAborts = new Set();
+function abortStaleRequests() { inflightAborts.forEach(f => { try { f(); } catch (e) {} }); inflightAborts.clear(); }
+const NEVER = () => new Promise(() => {});
 async function apiRaw(path, params = {}) {
+  const epoch = navEpoch;
+  try {
+    const r = await apiRawCore(path, params);
+    return epoch === navEpoch ? r : NEVER();
+  } catch (e) {
+    if (epoch !== navEpoch) return NEVER();
+    throw e;
+  }
+}
+async function apiRawCore(path, params = {}) {
   const url = new URL(API_BASE + path);
   Object.entries(params).forEach(([k, v]) => {
     if (v !== null && v !== undefined && v !== "") url.searchParams.set(k, v);
@@ -975,10 +1000,11 @@ async function apiRaw(path, params = {}) {
         controllers[orderIdx].signal.addEventListener("abort", () => { clearTimeout(w); reject(new Error("annulé")); });
       });
     }
-    const release = isInternal ? () => {} : await proxySemaphore.acquire();
-    const timer = setTimeout(() => controllers[orderIdx].abort(), isInternal ? 25000 : 9000);
+    const release = await (isInternal ? internalSemaphore : proxySemaphore).acquire();
+    if (controllers[orderIdx].signal.aborted) { release(); throw new Error("annulé"); }
+    const timer = setTimeout(() => controllers[orderIdx].abort(), isInternal ? 20000 : 9000);
     try {
-      const res = await fetch(proxy + encodeURIComponent(urlStr), { signal: controllers[orderIdx].signal });
+      const res = await fetch(proxy + encURI(urlStr), { signal: controllers[orderIdx].signal });
       let json;
       try { json = await res.json(); }
       catch (e) { throw new Error("Réponse invalide du proxy."); }
@@ -995,6 +1021,8 @@ async function apiRaw(path, params = {}) {
     }
   })());
   attempts.push(directAttempt);
+  const abortAll = () => { controllers.forEach(c => c.abort()); directController.abort(); };
+  inflightAborts.add(abortAll);
 
   // Si l'API elle-même répond par une erreur "métier" (not_found, bad_request…,
   // reconnaissable à son code), inutile d'attendre que toutes les autres sources
@@ -1009,11 +1037,13 @@ async function apiRaw(path, params = {}) {
   }));
   try {
     const json = await Promise.race([Promise.any(guarded), definitive]);
+    inflightAborts.delete(abortAll);
     controllers.forEach(c => c.abort());
     directController.abort();
     cacheWrite(cacheKey, json);
     return json;
   } catch (aggregateErr) {
+    inflightAborts.delete(abortAll);
     controllers.forEach(c => c.abort());
     directController.abort();
     // Dernier filet : si on a déjà réussi à charger cette même ressource
@@ -1075,6 +1105,7 @@ function fixImageUrls(node, depth = 0) {
 }
 const fx = (r) => { if (r && r.data) fixImageUrls(r.data); return r; };
 async function api(path, params = {}, altParams = null) {
+  const epoch0 = navEpoch;
   try {
     return fx(dedupeResult(path, await apiRaw(path, params)));
   } catch (e1) {
@@ -1083,6 +1114,7 @@ async function api(path, params = {}, altParams = null) {
       catch (e2) { /* on retombe sur la dernière tentative ci-dessous */ }
     }
     await new Promise(r => setTimeout(r, 700));
+    if (epoch0 !== navEpoch) return NEVER();
     return fx(dedupeResult(path, await apiRaw(path, params)));
   }
 }
@@ -1177,10 +1209,10 @@ const ENDPOINT_CANDIDATES = {
   // (MangaDex) pour manga / manhwa.
   manga: ["comics"],
   manhwa: ["comics"],
-  webtoon: ["webtoons", "webtoon"],
+  webtoon: ["webtoons", "comics"],
 };
 // Paramètres obligatoires ajoutés quand la route est partagée (/comics?type=manga).
-const COMICS_PARAMS = { manga: { type: "manga" }, manhwa: { type: "manhwa" } };
+const COMICS_PARAMS = { manga: { type: "manga" }, manhwa: { type: "manhwa" }, webtoon: { type: "webtoon" } };
 const resolvedEndpoint = {};
 ENDPOINT_CANDIDATES.sport = ["sports"];
 // Hentai : l'API propose 3 sources (watchhentai, hentaigasm, hentaimama).
@@ -1206,7 +1238,7 @@ function discoverApiRoutes() {
       const origin = new URL(API_BASE).origin;
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 8000);
-      const res = await fetch(MY_PROXY_URL + encodeURIComponent(origin + "/docs"), { signal: ctrl.signal });
+      const res = await fetch(MY_PROXY_URL + encURI(origin + "/docs"), { signal: ctrl.signal });
       clearTimeout(t);
       const html = await res.text();
       const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ");
@@ -1238,6 +1270,29 @@ function endpointNames(type) {
   const r = resolvedEndpoint[type];
   return r ? [r, ...base.filter(n => n !== r)] : base;
 }
+// Lance des essais "de secours" l'un après l'autre : le suivant démarre dès que le
+// précédent échoue, ou après `stagger` ms s'il est lent. Le premier succès gagne.
+// (Avant : essais strictement un par un, avec jusqu'à ~12 s d'attente à chaque échec.)
+function raceStaggered(tasks, stagger = 2500) {
+  const epoch = navEpoch;
+  return new Promise((resolve, reject) => {
+    let finished = false, started = 0, failed = 0;
+    const errs = [];
+    const startNext = () => {
+      if (finished || started >= tasks.length || epoch !== navEpoch) return;
+      const k = started++;
+      const timer = started < tasks.length ? setTimeout(startNext, stagger) : null;
+      Promise.resolve().then(tasks[k]).then(
+        v => { if (!finished) { finished = true; if (timer) clearTimeout(timer); resolve(v); } },
+        e => {
+          errs[k] = e; failed++;
+          if (timer && !finished) { clearTimeout(timer); startNext(); }
+          if (failed === tasks.length && !finished) { finished = true; reject(errs.find(Boolean) || new Error("Aucune réponse de l'API.")); }
+        });
+    };
+    startNext();
+  });
+}
 // Liste d'une catégorie (page d'accueil, catalogue, titres similaires).
 async function listApi(type, params = {}) {
   if (!ENDPOINT_CANDIDATES[type]) return api(`/${type}`, params);
@@ -1248,33 +1303,37 @@ async function listApi(type, params = {}) {
     if (!arr.length) throw new Error("Aucune chaîne gratuite disponible pour le moment.");
     return { ...r, data: arr };
   }
-  if (type === "hentai") params = { source: getHentaiSource(), ...params };
-  const names = endpointNames(type);
-  let firstErr = null;
-  for (let i = 0; i < names.length; i++) {
-    try {
-      const callParams = names[i] === "comics" ? { ...params, ...(COMICS_PARAMS[type] || {}) } : params;
-      const r = i === 0 ? await api(`/${names[i]}`, callParams) : await apiRaw(`/${names[i]}`, callParams);
-      if (r && Array.isArray(r.data) && r.data.length) {
-        fx(r);
-        resolvedEndpoint[type] = names[i];
-        r.data.forEach(it => { if (it) it.type = type; });
-        return dedupeResult(`/${type}`, r);
-      }
-      firstErr = firstErr || new Error(`/${names[i]} : la liste est vide`);
-    } catch (e) { firstErr = firstErr || e; }
+  if (type === "hentai") {
+    const cur = getHentaiSource();
+    const order = [cur, ...HENTAI_SOURCES.filter(x => x !== cur)];
+    const win = await raceStaggered(order.map(src => async () => {
+      const r = await api("/hentai", { source: src, ...params });
+      if (!(r && Array.isArray(r.data) && r.data.length)) throw new Error(`hentai (${src}) : liste vide`);
+      return { src, r };
+    }));
+    const { src, r } = win;
+    fx(r);
+    r.data.forEach(it => { if (it) { it.type = "hentai"; if (!it.source) it.source = src; } });
+    if (src !== cur) setHentaiSource(src);   // on garde la source qui répond
+    return dedupeResult("/hentai", r);
   }
-  throw firstErr || new Error("Aucune donnée reçue de l'API.");
+  const names = endpointNames(type);
+  const got = await raceStaggered(names.map((name, i) => async () => {
+    const callParams = name === "comics" ? { ...params, ...(COMICS_PARAMS[type] || {}) } : params;
+    const r = i === 0 ? await api(`/${name}`, callParams) : await apiRaw(`/${name}`, callParams);
+    if (!(r && Array.isArray(r.data) && r.data.length)) throw new Error(`/${name} : la liste est vide`);
+    return { name, r };
+  }));
+  fx(got.r);
+  resolvedEndpoint[type] = got.name;
+  got.r.data.forEach(it => { if (it) it.type = type; });
+  return dedupeResult(`/${type}`, got.r);
 }
 // Fiche / sous-ressource d'un titre : /<nom>/<suffixe>
 async function apiMulti(type, suffix, params = {}) {
   const names = endpointNames(type);
-  let firstErr = null;
-  for (let i = 0; i < names.length; i++) {
-    try { return i === 0 ? await api(`/${names[i]}${suffix}`, params) : fx(await apiRaw(`/${names[i]}${suffix}`, params)); }
-    catch (e) { firstErr = firstErr || e; }
-  }
-  throw firstErr || new Error("Aucune réponse de l'API.");
+  return raceStaggered(names.map((name, i) => async () =>
+    i === 0 ? await api(`/${name}${suffix}`, params) : fx(await apiRaw(`/${name}${suffix}`, params))));
 }
 
 const TYPE_ROUTE = {
@@ -1322,7 +1381,7 @@ function doSearchFrom(inputId = "searchInput") {
   const el = document.getElementById(inputId);
   const q = el.value.trim();
   if (q.length < 2) return alert("Minimum 2 caractères");
-  nav(`recherche?q=${encodeURIComponent(q)}`);
+  nav(`recherche?q=${encURI(q)}`);
 }
 function cardBadgeClass(v) { return v === "VOSTFR" ? "vostfr" : v === "TrueFrench" ? "truefrench" : ""; }
 
@@ -1353,10 +1412,10 @@ function cardHtml(item, size /* "grid" | "row" */) {
   const cls = size === "row" ? "row-card" : "card";
   return `
     <div class="${cls}" title="${escHtml(item.title)}">
-      <button type="button" class="mylist-heart ${inList ? "active" : ""}" data-slug="${item.slug}" aria-label="Ma Liste">${inList ? "♥" : "♡"}</button>
-      <a onclick="nav('${route}?slug=${encodeURIComponent(item.slug)}${item.source ? "&source=" + encodeURIComponent(item.source) : ""}')">
+      <button type="button" class="mylist-heart ${inList ? "active" : ""}" data-slug="${escHtml(item.slug)}" aria-label="Ma Liste">${inList ? "♥" : "♡"}</button>
+      <a onclick="nav('${route}?slug=${encURI(item.slug)}${item.source ? "&source=" + encURI(item.source) : ""}')">
         <img src="${item.image}" alt="${escHtml(item.title)}" loading="lazy"
-             data-orig="${encodeURIComponent(item.image)}" data-retried="0" onerror="imgFallback(this)">
+             data-orig="${encURI(item.image)}" data-retried="0" onerror="imgFallback(this)">
         <span class="type-chip">${typeLabel(item)}</span>
         ${itemRating(item) ? `<span class="rate-chip">${itemRating(item)}</span>` : ""}
         <span class="badge ${badgeClass} row-card-badge">${item.version || ""}</span>
@@ -1538,7 +1597,7 @@ function viewIndex() {
     quickForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const email = document.getElementById("quickEmail").value.trim();
-      nav(`inscription${email ? "?email=" + encodeURIComponent(email) : ""}`);
+      nav(`inscription${email ? "?email=" + encURI(email) : ""}`);
     });
   }
   const bgEl = document.getElementById("welcomeBg");
@@ -1554,7 +1613,7 @@ function viewIndex() {
 function wallHtml(images) {
   const COLS = 4, PER = 7;
   const tile = (m, i) => m
-    ? `<div class="tile"><img src="${escHtml(m.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-orig="${encodeURIComponent(m.image)}" data-retried="0" onerror="imgFallback(this)"></div>`
+    ? `<div class="tile"><img src="${escHtml(m.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-orig="${encURI(m.image)}" data-retried="0" onerror="imgFallback(this)"></div>`
     : `<div class="tile ph" style="--hue:${(i * 47) % 360}"></div>`;
   let html = "";
   for (let c = 0; c < COLS; c++) {
@@ -1726,13 +1785,13 @@ function escHtml(s) {
 }
 function imgTag(item, cls, eager) {
   return `<img class="${cls}" src="${escHtml(item.image)}" alt="" ${eager ? "" : 'loading="lazy"'} referrerpolicy="no-referrer"
-    data-orig="${encodeURIComponent(item.image || "")}" data-retried="0" onerror="imgFallback(this)">`;
+    data-orig="${encURI(item.image || "")}" data-retried="0" onerror="imgFallback(this)">`;
 }
 
 function slideHtml(item, i) {
   const route = detailRoute(item);
   const rating = itemRating(item);
-  const go = `nav('${route}?slug=${encodeURIComponent(item.slug)}')`;
+  const go = `nav('${route}?slug=${encURI(item.slug)}')`;
   const inList = isInMyList(item.slug);
   return `
     <article class="slide ${i === 0 ? "on" : ""}" aria-hidden="${i === 0 ? "false" : "true"}">
@@ -1834,7 +1893,7 @@ function showAnnonce(item) {
   try { dismissed = sessionStorage.getItem("pm_annonce_off") || ""; } catch (e) {}
   if (dismissed === item.slug) return;
   trackItems([item]);
-  const go = `nav('${detailRoute(item)}?slug=${encodeURIComponent(item.slug)}')`;
+  const go = `nav('${detailRoute(item)}?slug=${encURI(item.slug)}')`;
   box.innerHTML = `
     <div class="announce" role="region" aria-label="Annonce">
       <span class="announce-tag">✦ ${escHtml(ANNONCE.etiquette)}</span>
@@ -1911,7 +1970,8 @@ async function viewAccueil() {
   // Si l'utilisateur change de page pendant le chargement, on abandonne
   // silencieusement pour ne rien écrire au mauvais endroit.
   const startHash = location.hash;
-  const stillOnThisPage = () => location.hash === startHash;
+  const myEpoch = navEpoch;
+  const stillOnThisPage = () => location.hash === startHash && myEpoch === navEpoch;
 
   const loaded = {};
   const failedReason = {};
@@ -2007,7 +2067,19 @@ async function viewAccueil() {
   // On n'attend pas la catégorie la plus lente : après 1,2 s max, les autres démarrent.
   await Promise.race([coreP, new Promise(r => setTimeout(r, 1200))]);
   tryStage(true);
-  await Promise.allSettled([coreP, ...extra.map((s, i) => runSection(s, i * 150))]);
+  // Catégories secondaires (hentai, manga, manhwa, webtoon, sport) : chargées quand
+  // l'utilisateur descend dans la page (ou après 6 s) — beaucoup moins de requêtes
+  // simultanées sur l'API, donc des films qui chargent vite.
+  let extrasStarted = false;
+  const startExtras = () => {
+    if (extrasStarted || !stillOnThisPage()) return;
+    extrasStarted = true;
+    window.removeEventListener("scroll", startExtras);
+    extra.forEach((s, i) => runSection(s, i * 400));
+  };
+  window.addEventListener("scroll", startExtras, { passive: true });
+  setTimeout(startExtras, 6000);
+  await coreP;
   if (stillOnThisPage() && !Object.keys(loaded).length && !myList.length) {
     rowsEl.innerHTML = `
       <div class="error-box">
@@ -2153,7 +2225,7 @@ function viewRecherche() {
     if (e.key === "Enter") {
       const val = e.target.value.trim();
       if (val.length < 2) return;
-      nav(`recherche?q=${encodeURIComponent(val)}`);
+      nav(`recherche?q=${encURI(val)}`);
     }
   });
 
@@ -2210,7 +2282,7 @@ function detailChrome() { document.getElementById("hero").innerHTML = ""; docume
 function loadBackdrop(url) {
   const el = document.querySelector(".dhero");
   if (!el || !url) return;
-  const attempts = [url, ...PROXIES.map(p => p + encodeURIComponent(url))];
+  const attempts = [url, ...PROXIES.map(p => p + encURI(url))];
   let i = 0;
   const tryNext = () => {
     if (i >= attempts.length || !document.body.contains(el)) return;
@@ -2311,7 +2383,7 @@ async function viewFilm() {
     if (m.type === "series") { nav(`serie?slug=${slug}`); return; }
     document.title = `${m.title} — PRINCE MOVIE`;
     const playId = resolvePlayId(m);
-    const playHref = `lecteur?${playId ? `id=${encodeURIComponent(playId)}&` : ""}type=movies&slug=${encodeURIComponent(m.slug)}&title=${encodeURIComponent(m.title)}`;
+    const playHref = `lecteur?${playId ? `id=${encURI(playId)}&` : ""}type=movies&slug=${encURI(m.slug)}&title=${encURI(m.title)}`;
     document.getElementById("app").innerHTML = `<main>
       ${detailHeroHtml({
         image: m.image, title: m.title, year: m.year,
@@ -2324,10 +2396,10 @@ async function viewFilm() {
           <h1 class="section-title">Titres similaires</h1>
           <div class="similar-row">
             ${m.related.map(r => `
-              <div class="row-card" title="${r.title}">
-                <a onclick="nav('${r.type === "series" ? "serie" : "film"}?slug=${encodeURIComponent(r.slug)}')">
-                  <img src="${r.image}" alt="${r.title}" loading="lazy"
-                       data-orig="${encodeURIComponent(r.image)}" data-retried="0" onerror="imgFallback(this)">
+              <div class="row-card" title="${escHtml(r.title)}">
+                <a onclick="nav('${r.type === "series" ? "serie" : "film"}?slug=${encURI(r.slug)}')">
+                  <img src="${r.image}" alt="${escHtml(r.title)}" loading="lazy"
+                       data-orig="${encURI(r.image)}" data-retried="0" onerror="imgFallback(this)">
                   <span class="badge ${cardBadgeClass(r.version)} row-card-badge">${r.version || ""}</span>
                 </a>
               </div>`).join("")}
@@ -2352,7 +2424,7 @@ async function viewSerie() {
     if (s.type === "movie") { nav(`film?slug=${slug}`); return; }
     document.title = `${s.title} — PRINCE MOVIE`;
     const playId = resolvePlayId(s);
-    const playHref = `lecteur?${playId ? `id=${encodeURIComponent(playId)}&` : ""}type=series&slug=${encodeURIComponent(s.slug)}&title=${encodeURIComponent(s.title)}`;
+    const playHref = `lecteur?${playId ? `id=${encURI(playId)}&` : ""}type=series&slug=${encURI(s.slug)}&title=${encURI(s.title)}`;
     document.getElementById("app").innerHTML = `<main>
       ${detailHeroHtml({
         image: s.image, title: s.title, year: s.year,
@@ -2361,7 +2433,7 @@ async function viewSerie() {
         synopsis: s.synopsis, playHref, playLabel: "Voir l'épisode 1",
       })}
       <div class="detail-body">
-        ${episodesBySeasonHtml(normalizeEpisodesData(s), ep => `lecteur?id=${encodeURIComponent(ep.episode_id)}&type=series&slug=${encodeURIComponent(s.slug)}&title=${encodeURIComponent(s.title + " - S" + ep.season + "E" + ep.number)}`)}
+        ${episodesBySeasonHtml(normalizeEpisodesData(s), ep => `lecteur?id=${encURI(ep.episode_id)}&type=series&slug=${encURI(s.slug)}&title=${encURI(s.title + " - S" + ep.season + "E" + ep.number)}`)}
       </div>
     </main>`;
     loadBackdrop(s.image);
@@ -2379,7 +2451,7 @@ async function viewAnime() {
   try {
     const { data: a } = await api(`/anime/${slug}`);
     document.title = `${a.title} — PRINCE MOVIE`;
-    const animePlayHref = a.first_episode_id ? `lecteur?type=anime&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(a.first_episode_id)}&title=${encodeURIComponent(a.title)}` : null;
+    const animePlayHref = a.first_episode_id ? `lecteur?type=anime&slug=${encURI(a.slug)}&episode=${encURI(a.first_episode_id)}&title=${encURI(a.title)}` : null;
     document.getElementById("app").innerHTML = `<main>
       ${detailHeroHtml({
         image: a.image, title: a.title, year: a.year,
@@ -2388,7 +2460,7 @@ async function viewAnime() {
         synopsis: a.synopsis, playHref: animePlayHref, playLabel: "Voir l'épisode 1",
       })}
       <div class="detail-body">
-        ${episodesBySeasonHtml(normalizeEpisodesData(a), ep => `lecteur?type=anime&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(ep.episode_id)}&title=${encodeURIComponent(a.title + " - " + (ep.title || ep.number))}`)}
+        ${episodesBySeasonHtml(normalizeEpisodesData(a), ep => `lecteur?type=anime&slug=${encURI(a.slug)}&episode=${encURI(ep.episode_id)}&title=${encURI(a.title + " - " + (ep.title || ep.number))}`)}
       </div>
     </main>`;
     loadBackdrop(a.image);
@@ -2411,7 +2483,7 @@ async function viewHentai() {
     document.title = `${a.title} — PRINCE MOVIE`;
     const hEpisodes = normalizeEpisodesData(a);
     const hFirstId = a.first_episode_id || epIdOf(hEpisodes[0]);
-    const animePlayHref = hFirstId ? `lecteur?type=hentai&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(hFirstId)}&source=${encodeURIComponent(a.source || hsrc)}&title=${encodeURIComponent(a.title)}` : null;
+    const animePlayHref = hFirstId ? `lecteur?type=hentai&slug=${encURI(a.slug)}&episode=${encURI(hFirstId)}&source=${encURI(a.source || hsrc)}&title=${encURI(a.title)}` : null;
     document.getElementById("app").innerHTML = `<main>
       ${detailHeroHtml({
         image: a.image, title: a.title, year: a.year,
@@ -2420,7 +2492,7 @@ async function viewHentai() {
         synopsis: a.synopsis, playHref: animePlayHref, playLabel: "Voir l'épisode 1",
       })}
       <div class="detail-body">
-        ${episodesBySeasonHtml(hEpisodes, ep => `lecteur?type=hentai&slug=${encodeURIComponent(a.slug)}&episode=${encodeURIComponent(epIdOf(ep))}&source=${encodeURIComponent(a.source || hsrc)}&title=${encodeURIComponent(a.title + " - " + (ep.title || ep.number))}`)}
+        ${episodesBySeasonHtml(hEpisodes, ep => `lecteur?type=hentai&slug=${encURI(a.slug)}&episode=${encURI(epIdOf(ep))}&source=${encURI(a.source || hsrc)}&title=${encURI(a.title + " - " + (ep.title || ep.number))}`)}
       </div>
     </main>`;
     loadBackdrop(a.image);
@@ -2460,7 +2532,7 @@ function extractPageUrls(d, depth = 0) {
   return [];
 }
 async function fetchChapterPages(type, slug, chapter) {
-  const s = encodeURIComponent(slug), c = encodeURIComponent(chapter);
+  const s = encURI(slug), c = encURI(chapter);
   const attempts = [];
   for (const n of endpointNames(type)) {
     // Routes documentées par l'API : d'abord les bonnes, puis des variantes de secours.
@@ -2496,11 +2568,11 @@ async function viewComic(type) {
   const slug = getSlug();
   if (!slug) { showError("Aucun titre sélectionné."); return; }
   try {
-    const { data: a } = await apiMulti(type, `/${encodeURIComponent(slug)}`);
+    const { data: a } = await apiMulti(type, `/${encURI(slug)}`);
     document.title = `${a.title} — PRINCE MOVIE`;
     const chapters = normalizeChapters(a);
     const first = chapters.length ? chapters.slice().sort((x, y) => (+x.number || 0) - (+y.number || 0))[0] : null;
-    const href = (c) => `lire?type=${type}&slug=${encodeURIComponent(a.slug || slug)}&chapter=${encodeURIComponent(chapterIdOf(c))}&title=${encodeURIComponent(a.title + " - " + c.title)}`;
+    const href = (c) => `lire?type=${type}&slug=${encURI(a.slug || slug)}&chapter=${encURI(chapterIdOf(c))}&title=${encURI(a.title + " - " + c.title)}`;
     document.getElementById("app").innerHTML = `<main>
       ${detailHeroHtml({
         image: a.image, title: a.title, year: a.year,
@@ -2540,20 +2612,20 @@ async function viewLire() {
     if (location.hash !== startHash) return;
     app.innerHTML = `<main class="reader-wrap">
       <div class="reader-bar">
-        <a class="btn-outline" onclick="nav('${type}?slug=${encodeURIComponent(slug)}')">← Chapitres</a>
+        <a class="btn-outline" onclick="nav('${type}?slug=${encURI(slug)}')">← Chapitres</a>
         <span class="reader-title">${escHtml(title)}</span>
       </div>
-      <div class="reader" id="readerPages">${pages.map(u => `<img src="${escHtml(u)}" alt="" loading="lazy" data-orig="${encodeURIComponent(u)}" data-retried="0" onerror="imgFallback(this)">`).join("")}</div>
+      <div class="reader" id="readerPages">${pages.map(u => `<img src="${escHtml(u)}" alt="" loading="lazy" data-orig="${encURI(u)}" data-retried="0" onerror="imgFallback(this)">`).join("")}</div>
       ${(type === "manga" || type === "manhwa") ? `<p class="credit-line">Source : MangaDex — merci aux groupes de scan.</p>` : ""}
       <div class="reader-bar" id="readerNav"></div>
     </main>`;
     // Boutons précédent / suivant (facultatifs : si la fiche ne répond pas, on les omet)
     try {
-      const { data: a } = await apiMulti(type, `/${encodeURIComponent(slug)}`);
+      const { data: a } = await apiMulti(type, `/${encURI(slug)}`);
       const list = normalizeChapters(a);
       const sorted = list.every(c => Number.isFinite(+c.number)) ? list.slice().sort((x, y) => +x.number - +y.number) : list;
       const idx = sorted.findIndex(c => String(chapterIdOf(c)) === String(chapter));
-      const go = (c) => `lire?type=${type}&slug=${encodeURIComponent(slug)}&chapter=${encodeURIComponent(chapterIdOf(c))}&title=${encodeURIComponent((a.title || "") + " - " + c.title)}`;
+      const go = (c) => `lire?type=${type}&slug=${encURI(slug)}&chapter=${encURI(chapterIdOf(c))}&title=${encURI((a.title || "") + " - " + c.title)}`;
       const box = document.getElementById("readerNav");
       if (box && location.hash === startHash && idx !== -1) {
         const prev = sorted[idx - 1], next = sorted[idx + 1];
@@ -2571,7 +2643,7 @@ async function viewLire() {
    ========================================================= */
 const API_ORIGIN = (() => { try { return new URL(API_BASE).origin; } catch (e) { return ""; } })();
 const absApi = (u) => (typeof u === "string" && u.startsWith("/") && !u.startsWith("//")) ? API_ORIGIN + u : u;
-const CHANNEL_PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><rect width="200" height="300" fill="#1a1a1a"/><text x="100" y="165" font-size="44" text-anchor="middle" fill="#888" font-family="sans-serif">TV</text></svg>');
+const CHANNEL_PLACEHOLDER = "data:image/svg+xml," + encURI('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><rect width="200" height="300" fill="#1a1a1a"/><text x="100" y="165" font-size="44" text-anchor="middle" fill="#888" font-family="sans-serif">TV</text></svg>');
 const SPORT_FILTERS = [["", "Tous"], ["soccer", "Football"], ["basketball", "Basket"], ["football", "Foot US"], ["baseball", "Baseball"], ["hockey", "Hockey"], ["racing", "Course"], ["tennis", "Tennis"], ["golf", "Golf"], ["mma", "MMA"]];
 let sportFilter = "";
 
@@ -2585,7 +2657,7 @@ function channelToItem(ch) {
 function matchRoute(ev) {
   let sp = ev.sport, lg = String(ev.league || "");
   if (lg.includes("/")) { const p = lg.split("/"); sp = p[0]; lg = p.slice(1).join("/"); }
-  return `match?sport=${encodeURIComponent(sp || "")}&league=${encodeURIComponent(lg)}&id=${encodeURIComponent(ev.id)}`;
+  return `match?sport=${encURI(sp || "")}&league=${encURI(lg)}&id=${encURI(ev.id)}`;
 }
 function formatKickoff(iso) {
   try { return new Date(iso).toLocaleString("fr-FR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); }
@@ -2665,7 +2737,7 @@ async function viewCanal() {
   window.__pmNextHref = null;
   try {
     if (!id) throw new Error("Aucune chaîne sélectionnée.");
-    const { data: ch } = await api(`/sports/channels/${encodeURIComponent(id)}`);
+    const { data: ch } = await api(`/sports/channels/${encURI(id)}`);
     const t = document.getElementById("lecteurTitle"); if (t && ch.name) t.textContent = ch.name;
     document.title = `${ch.name || title} — PRINCE MOVIE`;
     const streams = (ch.streams || []).filter(s => s && s.play_url && s.playable !== false);
@@ -2683,7 +2755,7 @@ async function viewCanal() {
 async function viewMatch() {
   detailChrome();
   const sport = getParam("sport") || "", league = getParam("league") || "", id = getParam("id") || "";
-  const base = `/sports/events/${encodeURIComponent(sport)}/${encodeURIComponent(league)}/${encodeURIComponent(id)}`;
+  const base = `/sports/events/${encURI(sport)}/${encURI(league)}/${encURI(id)}`;
   document.getElementById("app").innerHTML = `<main><div id="matchBox"><div class="loader">Chargement</div></div><div id="watchBox"></div></main>`;
   const startHash = location.hash;
   const alive = () => location.hash === startHash && document.getElementById("matchBox");
@@ -2729,7 +2801,7 @@ async function viewMatch() {
     const free = wd.free_channels || [];
     const box = document.getElementById("watchBox");
     if (box) box.innerHTML = free.length
-      ? `<h3 class="sport-h">Regarder (chaînes gratuites)</h3><div class="watch-list">${free.map(c => `<a class="btn" onclick="nav('canal?slug=${encodeURIComponent(c.id)}&title=${encodeURIComponent(c.name || "")}')">${escHtml(c.name || c.id)}</a>`).join("")}</div>`
+      ? `<h3 class="sport-h">Regarder (chaînes gratuites)</h3><div class="watch-list">${free.map(c => `<a class="btn" onclick="nav('canal?slug=${encURI(c.id)}&title=${encURI(c.name || "")}')">${escHtml(c.name || c.id)}</a>`).join("")}</div>`
       : `<p style="color:var(--text-muted);margin:14px 4px">Aucune chaîne gratuite ne diffuse ce match : il est réservé à des diffuseurs payants. Le score se met à jour automatiquement sur cette page.</p>`;
   } catch (e) { console.error("Où regarder :", e); }
   // Mise à jour automatique du score (toutes les 10 s) tant que le match n'est pas fini
@@ -2754,7 +2826,7 @@ async function viewDrama() {
   try {
     const { data: d } = await api(`/dramas/${slug}`);
     document.title = `${d.title} — PRINCE MOVIE`;
-    const dramaPlayHref = d.first_episode_id ? `lecteur?type=dramas&slug=${encodeURIComponent(d.slug)}&episode=${encodeURIComponent(d.first_episode_id)}&title=${encodeURIComponent(d.title)}` : null;
+    const dramaPlayHref = d.first_episode_id ? `lecteur?type=dramas&slug=${encURI(d.slug)}&episode=${encURI(d.first_episode_id)}&title=${encURI(d.title)}` : null;
     document.getElementById("app").innerHTML = `<main>
       ${detailHeroHtml({
         image: d.image, title: d.title, year: d.year,
@@ -2763,7 +2835,7 @@ async function viewDrama() {
         synopsis: d.synopsis, playHref: dramaPlayHref, playLabel: "Voir l'épisode 1",
       })}
       <div class="detail-body">
-        ${episodesBySeasonHtml(normalizeEpisodesData(d), ep => `lecteur?type=dramas&slug=${encodeURIComponent(d.slug)}&episode=${encodeURIComponent(ep.episode_id)}&title=${encodeURIComponent(d.title + " - " + (ep.title || ep.number))}`)}
+        ${episodesBySeasonHtml(normalizeEpisodesData(d), ep => `lecteur?type=dramas&slug=${encURI(d.slug)}&episode=${encURI(ep.episode_id)}&title=${encURI(d.title + " - " + (ep.title || ep.number))}`)}
       </div>
     </main>`;
     loadBackdrop(d.image);
@@ -2782,10 +2854,10 @@ function imgFallback(img) {
     img.src = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22300%22%3E%3Crect fill=%22%23222%22 width=%22200%22 height=%22300%22/%3E%3C/svg%3E";
     return;
   }
-  const orig = decodeURIComponent(img.dataset.orig || encodeURIComponent(img.src));
-  img.dataset.orig = encodeURIComponent(orig);
+  const orig = decodeURIComponent(img.dataset.orig || encURI(img.src));
+  img.dataset.orig = encURI(orig);
   img.dataset.retried = String(tried + 1);
-  img.src = PROXIES[tried] + encodeURIComponent(orig);
+  img.src = PROXIES[tried] + encURI(orig);
 }
 /* ----- Lecteur vidéo ----- */
 // Identifiant d'épisode : selon les titres, l'API le nomme episode_id, id ou slug.
@@ -2830,6 +2902,7 @@ async function viewLecteur() {
     <section class="similar-section" id="similar"></section>
   </main>`;
   window.__pmNextHref = null;
+  window.__pmAutoIframe = {};
   loadSimilar(type, slug);
 
   let servers = [];
@@ -2843,6 +2916,7 @@ async function viewLecteur() {
       // (celle des séries) n'était pas essayée du tout.
       const attempts = [
         ...endpointNames(type).map(n => [`/${n}/${slug}/servers`, () => fetchServers(`/${n}/${slug}/servers`, episode, srvExtra)]),
+        ...(type === "hentai" ? HENTAI_SOURCES.filter(x => x !== srvExtra.source).map(src => [`/hentai/${slug}/servers (${src})`, () => fetchServers(`/hentai/${slug}/servers`, episode, { source: src })]) : []),
         ...(type === "hentai" ? [[`/anime/${slug}/servers`, () => fetchServers(`/anime/${slug}/servers`, episode)]] : []),
         [`/episodes/${episode}/servers`, async () => { const r = await api(`/episodes/${episode}/servers`); return r && r.data; }],
       ];
@@ -2887,7 +2961,7 @@ async function viewLecteur() {
     switchServer(0, servers);
     if (slug && ["series", "anime", "dramas", "hentai"].includes(type)) setupEpisodeNav(type, slug, episode || id, title);
   } catch (e) {
-    document.getElementById("player").innerHTML = `<div class="error-box"><h2>😕 Erreur</h2><p>${e.message}</p><p style="margin-top:10px"><a class="btn" onclick="nav('diagnostic')">Lancer le diagnostic</a></p></div>`;
+    document.getElementById("player").innerHTML = `<div class="error-box"><h2>😕 Erreur</h2><p>${escHtml(e.message)}</p><p style="margin-top:10px"><a class="btn" onclick="renderApp()">Réessayer</a> <a class="btn-outline" onclick="nav('diagnostic')">Diagnostic</a></p></div>`;
   }
 }
 // Boutons "Épisode précédent / suivant" sous le lecteur. Non bloquant : si la
@@ -2896,7 +2970,7 @@ async function setupEpisodeNav(type, slug, current, currentTitle) {
   const startHash = location.hash;
   try {
     const hs = type === "hentai" ? (getParam("source") || getHentaiSource()) : "";
-    const { data: d } = await apiMulti(type, `/${encodeURIComponent(slug)}`, hs ? { source: hs } : {});
+    const { data: d } = await apiMulti(type, `/${encURI(slug)}`, hs ? { source: hs } : {});
     if (location.hash !== startHash) return;
     const list = normalizeEpisodesData(d);
     if (list.length < 2) return;
@@ -2907,8 +2981,8 @@ async function setupEpisodeNav(type, slug, current, currentTitle) {
     if (idx === -1) return;
     const base = String(currentTitle || d.title || "").split(" - ")[0] || d.title || "";
     const href = (ep) => type === "series"
-      ? `lecteur?id=${encodeURIComponent(epIdOf(ep))}&type=series&slug=${encodeURIComponent(slug)}&title=${encodeURIComponent((d.title || base) + " - S" + (ep.season || 1) + "E" + ep.number)}`
-      : `lecteur?type=${type}&slug=${encodeURIComponent(slug)}&episode=${encodeURIComponent(epIdOf(ep))}${hs ? "&source=" + encodeURIComponent(hs) : ""}&title=${encodeURIComponent((d.title || base) + " - " + (ep.title || ep.number))}`;
+      ? `lecteur?id=${encURI(epIdOf(ep))}&type=series&slug=${encURI(slug)}&title=${encURI((d.title || base) + " - S" + (ep.season || 1) + "E" + ep.number)}`
+      : `lecteur?type=${type}&slug=${encURI(slug)}&episode=${encURI(epIdOf(ep))}${hs ? "&source=" + encURI(hs) : ""}&title=${encURI((d.title || base) + " - " + (ep.title || ep.number))}`;
     const prev = sorted[idx - 1], next = sorted[idx + 1];
     window.__pmNextHref = next ? href(next) : null;
     const box = document.getElementById("epNav");
@@ -2962,7 +3036,10 @@ function setReferrerPolicy(p) {
   if (!m) { m = document.createElement("meta"); m.name = "referrer"; document.head.appendChild(m); }
   m.content = p;
 }
-window.__pmMode = 0;   // 0 protégé · 1 compatibilité (sans bac à sable) · 2 compatibilité + sans referrer
+// 0 protégé (bloque pubs/popups, mais plusieurs hébergeurs refusent de jouer) ·
+// 1 compatibilité (sans bac à sable) · 2 compatibilité + sans referrer.
+// Par défaut : compatibilité, pour que la vidéo JOUE ; le choix de l'utilisateur est mémorisé.
+window.__pmMode = (() => { try { const v = localStorage.getItem("pm_mode"); return v === null ? 1 : Math.min(2, Math.max(0, parseInt(v, 10) || 0)); } catch (e) { return 1; } })();
 function loadHlsLib() {
   return new Promise((resolve, reject) => {
     if (window.Hls) return resolve(window.Hls);
@@ -2973,16 +3050,20 @@ function loadHlsLib() {
     document.head.appendChild(sc);
   });
 }
-function pmIframeFallback(i) {
+function pmIframeFallback(i, auto) {
   const servers = window.__pmServers || [];
   const l = servers[i] && servers[i].server_link;
   if (!l) return;
   const safe = String(l).replace(/"/g, "&quot;");
   document.getElementById("player").innerHTML = `<iframe src="${safe}" allowfullscreen allow="autoplay; fullscreen; picture-in-picture" referrerpolicy="no-referrer"></iframe>`;
+  if (auto) {
+    const fb = document.getElementById("fallbackLink");
+    if (fb && !document.getElementById("pmNote")) fb.insertAdjacentHTML("beforebegin", `<p id="pmNote" style="text-align:center;margin-top:12px;font-size:13px;color:var(--text-muted)">Lecteur alternatif activé. Si la vidéo ne s'affiche pas, touche « Ouvrir dans un nouvel onglet » ci-dessous.</p>`);
+  }
 }
 function switchServer(i, servers, newMode) {
   servers = servers || window.__pmServers;
-  if (typeof newMode === "number") window.__pmMode = newMode;
+  if (typeof newMode === "number") { window.__pmMode = newMode; try { localStorage.setItem("pm_mode", String(newMode)); } catch (e) {} }
   window.__pmIndex = i;
   document.querySelectorAll(".server-btn").forEach((b, idx) => b.classList.toggle("active", idx === i));
   const originalLink = servers[i].server_link;
@@ -2994,13 +3075,14 @@ function switchServer(i, servers, newMode) {
   try {
     const apiOrigin = new URL(API_BASE).origin;
     if (location.protocol === "https:" && new URL(originalLink).origin === apiOrigin) {
-      link = MY_PROXY_URL + encodeURIComponent(originalLink);
+      link = MY_PROXY_URL + encURI(originalLink);
     }
   } catch (e) {}
   const player = document.getElementById("player");
   const safeLink = String(link).replace(/"/g, "&quot;");
 
-  if (MEDIA_RE.test(originalLink) || (servers[i] && servers[i].server_type === "direct")) {
+  const declaredType = servers[i] && servers[i].server_type;
+  if (declaredType !== "embed" && (declaredType === "direct" || MEDIA_RE.test(originalLink))) {
     // Lien direct vers un fichier vidéo : un <video> natif, pas une iframe.
     setReferrerPolicy("no-referrer");
     player.innerHTML = `<video id="pmVideo" controls playsinline preload="metadata" style="width:100%;height:100%;background:#000"></video>`;
@@ -3027,8 +3109,17 @@ function switchServer(i, servers, newMode) {
       failedOnce = true;
       // Serveur suivant automatiquement s'il y en a un (sinon on affiche l'erreur).
       if (i + 1 < (servers || []).length) { switchServer(i + 1, servers); return; }
+      // Dernier serveur : on tente d'abord, automatiquement, le lecteur alternatif
+      // (iframe), avant d'afficher l'erreur. Pas pour les flux .m3u8.
+      window.__pmAutoIframe = window.__pmAutoIframe || {};
+      if (!window.__pmAutoIframe[i] && !/\.m3u8(\?|#|$)/i.test(originalLink)) {
+        window.__pmAutoIframe[i] = true;
+        console.error("Lecture directe impossible, bascule vers le lecteur alternatif :", videoHost, video.error && video.error.code);
+        pmIframeFallback(i, true);
+        return;
+      }
       const code = video.error ? video.error.code : "?";
-      player.innerHTML = `<div class="error-box"><p>Cette vidéo ne peut pas être lue ici.</p><p style="font-size:12px;opacity:.7">Essaie un autre serveur, ou une autre source hentai (boutons dans le catalogue).</p><p style="font-size:12px;opacity:.7">Hôte : ${escHtml(videoHost)} · code ${code}</p><p style="margin-top:10px"><a class="btn" onclick="pmIframeFallback(${i})">Essayer le lecteur du navigateur</a></p></div>`;
+      player.innerHTML = `<div class="error-box"><p>Cette vidéo ne peut pas être lue ici.</p><p style="font-size:12px;opacity:.7">Essaie un autre serveur ou un autre mode (boutons plus bas). Pour le hentai, tu peux aussi changer de source dans le catalogue.</p><p style="font-size:12px;opacity:.7">Hôte : ${escHtml(videoHost)} · code ${code}</p><p style="margin-top:10px"><a class="btn" onclick="pmIframeFallback(${i})">Essayer le lecteur du navigateur</a></p><p style="margin-top:10px"><a class="btn-outline" href="${escHtml(originalLink || link)}" target="_blank" rel="noopener noreferrer">Ouvrir la vidéo dans un nouvel onglet</a></p></div>`;
     };
     if (/\.m3u8(\?|#|$)/i.test(originalLink) && !video.canPlayType("application/vnd.apple.mpegurl")) {
       loadHlsLib().then((Hls) => {
@@ -3059,12 +3150,13 @@ function switchServer(i, servers, newMode) {
   // la page entière, le navigateur demande confirmation au lieu de partir en silence.
   window.onbeforeunload = window.__pmMode >= 1 ? (e) => { e.preventDefault(); e.returnValue = ""; } : null;
   const mode = window.__pmMode;
-  const labels = ["Essayer le mode compatibilité", "Essayer sans referrer", "Revenir au mode protégé"];
+  const modeLabels = ["Mode protégé (bloque les pubs)", "Mode compatibilité", "Sans referrer"];
+  const modeBtns = [0, 1, 2].filter(m => m !== mode).map(m =>
+    `<button type="button" class="btn-outline compat-btn" onclick="switchServer(${i}, window.__pmServers, ${m})">${modeLabels[m]}</button>`).join(" ");
   document.getElementById("fallbackLink").innerHTML =
-    `Le lecteur ne s'affiche pas ? ` +
-    `<button type="button" class="btn-outline compat-btn" onclick="switchServer(${i}, window.__pmServers, ${(mode + 1) % 3})">${labels[mode]}</button> ` +
+    `Le lecteur ne s'affiche pas ? ` + modeBtns + ` ` +
     `<a href="${String(originalLink).replace(/"/g, "&quot;")}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:700">Ouvrir dans un nouvel onglet</a>` +
-    (mode ? `<br><small>Mode compatibilité actif : des publicités de l'hébergeur peuvent apparaître.</small>` : "");
+    (mode ? `<br><small>Mode compatibilité actif : des publicités de l'hébergeur peuvent apparaître. « Mode protégé » les bloque, mais certains hébergeurs refusent alors de jouer.</small>` : "");
 }
 
 /* ----- Ma Liste ----- */
@@ -3083,11 +3175,11 @@ function renderMaliste() {
   }
   trackItems(list);
   app.innerHTML = `<div class="grid">` + list.map(item => `
-    <div class="card" title="${item.title}">
-      <button type="button" class="mylist-heart active" data-slug="${item.slug}" aria-label="Retirer de Ma Liste">♥</button>
-      <a onclick="nav('${detailRoute(item)}?slug=${encodeURIComponent(item.slug)}')">
+    <div class="card" title="${escHtml(item.title)}">
+      <button type="button" class="mylist-heart active" data-slug="${escHtml(item.slug)}" aria-label="Retirer de Ma Liste">♥</button>
+      <a onclick="nav('${detailRoute(item)}?slug=${encURI(item.slug)}')">
         <img src="${item.image}" alt="${escHtml(item.title)}" loading="lazy"
-             data-orig="${encodeURIComponent(item.image)}" data-retried="0" onerror="imgFallback(this)">
+             data-orig="${encURI(item.image)}" data-retried="0" onerror="imgFallback(this)">
         <span class="badge ${cardBadgeClass(item.version)} row-card-badge">${item.version || ""}</span>
       </a>
     </div>`).join("") + `</div>`;
@@ -3286,6 +3378,7 @@ const ROUTES = {
 };
 
 function renderApp() {
+  navEpoch++; abortStaleRequests();   // nouvelle page : on oublie l'ancienne
   window.onbeforeunload = null;   // la garde anti-redirection ne vaut que sur la page lecteur
   setReferrerPolicy("");
   const { path } = currentRoute();
@@ -3329,8 +3422,27 @@ function renderApp() {
   }
 }
 
+function showErrorBar(msg) {
+  try {
+    msg = String(msg || "").slice(0, 220);
+    if (!msg || /ResizeObserver|^Script error\.?$/i.test(msg)) return;
+    let bar = document.getElementById("pmErrBar");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "pmErrBar";
+      bar.style.cssText = "position:fixed;left:8px;right:8px;bottom:78px;z-index:9999;background:#2a0b0b;border:1px solid #e50914;color:#fff;border-radius:12px;padding:10px 38px 10px 12px;font-size:12px;line-height:1.4;box-shadow:0 6px 24px rgba(0,0,0,.6)";
+      document.body.appendChild(bar);
+    }
+    bar.innerHTML = `<b>Erreur :</b> ${escHtml(msg)}<span style="position:absolute;right:12px;top:8px;cursor:pointer;font-size:16px" onclick="this.parentNode.remove()">✕</span>`;
+  } catch (e) {}
+}
 window.addEventListener("error", (e) => {
   console.error("Erreur JS non gérée :", e.error || e.message);
+  if (e && e.message && !e.target?.src && !e.target?.href) showErrorBar(`${e.message}${e.lineno ? " (ligne " + e.lineno + ")" : ""}`);
+});
+window.addEventListener("unhandledrejection", (e) => {
+  console.error("Promesse rejetée :", e.reason);
+  showErrorBar((e.reason && e.reason.message) || e.reason);
 });
 window.addEventListener("hashchange", renderApp);
 window.addEventListener("DOMContentLoaded", renderApp);
