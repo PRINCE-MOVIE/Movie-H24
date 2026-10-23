@@ -1008,8 +1008,8 @@ async function apiRawCore(path, params = {}) {
       let json;
       try { json = await res.json(); }
       catch (e) { throw new Error("Réponse invalide du proxy."); }
-      if (!json.success) {
-        const err = new Error(json.error?.message || "Erreur inconnue.");
+      if (!json || json.success === false) {
+        const err = new Error(json?.error?.message || "Erreur inconnue.");
         err.code = json.error?.code;
         throw err;
       }
@@ -3316,6 +3316,19 @@ async function viewDiagnostic() {
   const ms = (t) => Math.round(performance.now() - t) + " ms";
   add(true, "Base de l'API", API_BASE);
   add(true, "Page en HTTPS", location.protocol === "https:" ? "oui (le proxy /api/proxy est nécessaire)" : "non");
+  // Étape 0 : le proxy du site est-il bien déployé, et l'API répond-elle à travers lui ?
+  {
+    const t = t0();
+    try {
+      const r = await fetch(MY_PROXY_URL + encURI(API_BASE + "/movies?page=1"));
+      const ct = r.headers.get("content-type") || "?";
+      const body = await r.text();
+      let j = null; try { j = JSON.parse(body); } catch (e) {}
+      if (j && j.success !== false && j.data) add(true, "Proxy du site (/api/proxy) → API", `HTTP ${r.status}, ${ms(t)}, ${(j.data || []).length} éléments`);
+      else if (j && j.success === false) add(false, "Proxy du site (/api/proxy) → API", `le proxy répond mais l'API est en erreur : ${j.error && j.error.message}${j.error && j.error.detail ? " (" + j.error.detail + ")" : ""} — serveur de l'API éteint ou injoignable ?`);
+      else add(false, "Proxy du site (/api/proxy) → API", `HTTP ${r.status} (${ct}) — réponse non JSON : le fichier api/proxy.js n'est probablement pas déployé au bon endroit (il doit être dans le dossier "api" à la racine du projet).`);
+    } catch (e) { add(false, "Proxy du site (/api/proxy) → API", "aucune réponse : " + e.message); }
+  }
   const types = ["movies", "series", "anime", "hentai", "manga", "manhwa", "webtoon", "dramas"];
   for (const type of types) {
     let first = null;
