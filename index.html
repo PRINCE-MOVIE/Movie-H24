@@ -255,7 +255,7 @@ const PLAYER_SERVERS = [
   { name: "Serveur 5", url: "https://example.com/embed/5" }
 ];
 
-function ensureServerTabs() {
+function attachServerSelector() {
   const playerWrap = document.querySelector('.player-wrap');
   if (!playerWrap) return;
 
@@ -269,10 +269,10 @@ function ensureServerTabs() {
     playerWrap.parentNode.insertBefore(tabs, playerWrap.nextSibling);
   }
 
-  if (tabs.dataset.bound === 'true') return;
-  tabs.dataset.bound = 'true';
-
+  if (tabs.dataset.ready === 'true') return;
+  tabs.dataset.ready = 'true';
   tabs.innerHTML = '';
+
   PLAYER_SERVERS.forEach((server, index) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -284,19 +284,16 @@ function ensureServerTabs() {
     });
     tabs.appendChild(button);
   });
+
+  if (!iframe.src || iframe.src === window.location.href) {
+    iframe.src = PLAYER_SERVERS[0].url;
+  }
 }
 
-const originalAddEventListener = window.addEventListener.bind(window);
-window.addEventListener = function (type, listener, options) {
-  originalAddEventListener(type, listener, options);
-  if (type === 'load') {
-    setTimeout(ensureServerTabs, 300);
-  }
-};
-
+window.addEventListener('load', () => setTimeout(attachServerSelector, 300));
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(ensureServerTabs, 200);
-  const observer = new MutationObserver(() => ensureServerTabs());
+  setTimeout(attachServerSelector, 200);
+  const observer = new MutationObserver(() => attachServerSelector());
   observer.observe(document.body, { childList: true, subtree: true });
 });
 
