@@ -25,12 +25,16 @@
       <div class="login-brand">PRINCE MOVIE</div>
 
       <div class="login-box">
-        <div class="login-head">
-          <span class="chip-pill">Premium access</span>
-          <h1>Connexion</h1>
+        <div class="auth-toggle" aria-label="Choix d'authentification">
+          <button class="auth-tab active" type="button" data-auth-mode="login">Connexion</button>
+          <button class="auth-tab" type="button" data-auth-mode="signup">Créer un compte</button>
         </div>
 
-        <form id="login-form">
+        <div class="login-head">
+          <h1 id="auth-title">Connexion</h1>
+        </div>
+
+        <form id="login-form" class="auth-form active">
           <div class="field">
             <label for="login-email">Email</label>
             <input type="email" id="login-email" placeholder="you@example.com" required />
@@ -42,6 +46,25 @@
           </div>
 
           <button type="submit" class="button primary full">Se connecter</button>
+        </form>
+
+        <form id="signup-form" class="auth-form hidden">
+          <div class="field">
+            <label for="signup-name">Nom</label>
+            <input type="text" id="signup-name" placeholder="Votre nom" required />
+          </div>
+
+          <div class="field">
+            <label for="signup-email">Email</label>
+            <input type="email" id="signup-email" placeholder="you@example.com" required />
+          </div>
+
+          <div class="field">
+            <label for="signup-pass">Mot de passe</label>
+            <input type="password" id="signup-pass" placeholder="Créez un mot de passe" required />
+          </div>
+
+          <button type="submit" class="button primary full">Créer mon compte</button>
         </form>
 
         <div class="login-meta">
