@@ -247,18 +247,177 @@ h1.section-title { font-size: 24px; margin-bottom: 20px; border-left: 4px solid 
 <script>
 window.open = function (url) { console.warn("Pop-up bloqué :", url); return null; };
 
-const PLAYER_SERVERS = [
-  { name: "Serveur 1", url: "https://example.com/embed/1" },
-  { name: "Serveur 2", url: "https://example.com/embed/2" },
-  { name: "Serveur 3", url: "https://example.com/embed/3" },
-  { name: "Serveur 4", url: "https://example.com/embed/4" },
-  { name: "Serveur 5", url: "https://example.com/embed/5" }
-];
+const PRINCE_CONFIG = {
+  apiBase: "http://51.75.118.170:20041/api/v1",
+  playerServers: [
+    { name: "Serveur 1", url: "" },
+    { name: "Serveur 2", url: "" },
+    { name: "Serveur 3", url: "" },
+    { name: "Serveur 4", url: "" },
+    { name: "Serveur 5", url: "" }
+  ],
+  endpoints: {
+    movie: "/movies/{id}",
+    episode: "/episodes/{id}",
+    tv: "/tv/{id}",
+    stream: "/stream/{id}",
+    home: "/home"
+  }
+};
+
+function setPlayerSource(url) {
+  const iframe = document.querySelector('.player-wrap iframe');
+  if (!iframe) return false;
+  if (!url) return false;
+  iframe.src = url;
+  return true;
+}
+
+function extractVideoUrl(value) {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    const s = value.trim();
+    if (/^https?:\/\//i.test(s) || /^\/\//.test(s) || s.startsWith('blob:') || s.startsWith('data:')) return s;
+    return null;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = extractVideoUrl(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (typeof value === 'object') {
+    const candidates = [
+      value.stream_url,
+      value.video_url,
+      value.player_url,
+      value.embed_url,
+      value.source,
+      value.url,
+      value.src,
+      value.link,
+      value.href,
+      value.file,
+      value.file_url,
+      value.mp4,
+      value.hls,
+      value.m3u8,
+      value.sources,
+      value.data,
+      value.result,
+      value.payload,
+      value.item
+    ];
+
+    for (const candidate of candidates) {
+      const found = extractVideoUrl(candidate);
+      if (found) return found;
+    }
+
+    for (const key of Object.keys(value)) {
+      if (key.toLowerCase().includes('url') || key.toLowerCase().includes('source') || key.toLowerCase().includes('stream') || key.toLowerCase().includes('video') || key.toLowerCase().includes('embed') || key.toLowerCase().includes('player')) {
+        const found = extractVideoUrl(value[key]);
+        if (found) return found;
+      }
+    }
+  }
+  return null;
+}
+
+function normalizeApiResponse(payload) {
+  if (!payload) return null;
+  const candidates = [
+    payload,
+    payload.data,
+    payload.result,
+    payload.response,
+    payload.payload,
+    payload.item,
+    payload.data?.data,
+    payload.result?.data,
+    payload.data?.result,
+    payload.items,
+    payload.movies,
+    payload.episodes,
+    payload.series,
+    payload.video,
+    payload.media
+  ];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const url = extractVideoUrl(candidate);
+    if (url) return { url, payload: candidate };
+    if (typeof candidate === 'object') {
+      for (const key of Object.keys(candidate)) {
+        if (key.toLowerCase().includes('video') || key.toLowerCase().includes('movie') || key.toLowerCase().includes('episode') || key.toLowerCase().includes('stream') || key.toLowerCase().includes('source') || key.toLowerCase().includes('url')) {
+          const nested = normalizeApiResponse(candidate[key]);
+          if (nested) return nested;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function apiUrl(path, params = {}) {
+  const u = new URL(PRINCE_CONFIG.apiBase + path);
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, v);
+  });
+  return u.toString();
+}
+
+async function apiRequest(path, params = {}) {
+  const url = apiUrl(path, params);
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error('API error: ' + res.status);
+  const json = await res.json();
+  return json;
+}
+
+async function loadContentById(kind, id) {
+  if (!id) return null;
+  const lookupPath = PRINCE_CONFIG.endpoints[kind] || '/{kind}/{id}';
+  const path = lookupPath.replace('{id}', encodeURIComponent(id));
+  try {
+    return await apiRequest(path);
+  } catch (e) {
+    const fallbackPaths = [
+      '/'+kind+'/' + encodeURIComponent(id),
+      '/' + kind + 's/' + encodeURIComponent(id),
+      '/' + kind + 's?id=' + encodeURIComponent(id),
+      '/stream/' + encodeURIComponent(id),
+      '/video/' + encodeURIComponent(id)
+    ];
+    for (const f of fallbackPaths) {
+      try {
+        return await apiRequest(f);
+      } catch (_) {}
+    }
+    throw e;
+  }
+}
+
+async function playMovieOrEpisode(kind, id) {
+  try {
+    const payload = await loadContentById(kind, id);
+    const resolved = normalizeApiResponse(payload);
+    if (!resolved || !resolved.url) {
+      console.warn('Aucune source vidéo trouvée pour', kind, id, payload);
+      return false;
+    }
+    setPlayerSource(resolved.url);
+    return true;
+  } catch (err) {
+    console.error('Erreur de lecture pour', kind, id, err);
+    return false;
+  }
+}
 
 function attachServerSelector() {
   const playerWrap = document.querySelector('.player-wrap');
   if (!playerWrap) return;
-
   const iframe = playerWrap.querySelector('iframe');
   if (!iframe) return;
 
@@ -273,20 +432,28 @@ function attachServerSelector() {
   tabs.dataset.ready = 'true';
   tabs.innerHTML = '';
 
-  PLAYER_SERVERS.forEach((server, index) => {
+  const servers = (window.PRINCE_CONFIG && window.PRINCE_CONFIG.playerServers) || PRINCE_CONFIG.playerServers;
+  servers.forEach((server, index) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'server-btn' + (index === 0 ? ' active' : '');
-    button.textContent = server.name;
+    button.textContent = server.name || `Serveur ${index + 1}`;
     button.addEventListener('click', () => {
       document.querySelectorAll('.server-btn').forEach((btn) => btn.classList.toggle('active', btn === button));
-      iframe.src = server.url;
+      if (server.url) {
+        iframe.src = server.url;
+      } else {
+        const current = iframe.src;
+        const fallback = current && current !== location.href ? current : '';
+        if (fallback) iframe.src = fallback;
+      }
     });
     tabs.appendChild(button);
   });
 
-  if (!iframe.src || iframe.src === window.location.href) {
-    iframe.src = PLAYER_SERVERS[0].url;
+  if (!iframe.src || iframe.src === location.href) {
+    const firstServer = servers.find(s => !!s.url);
+    if (firstServer) iframe.src = firstServer.url;
   }
 }
 
@@ -297,17 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
   observer.observe(document.body, { childList: true, subtree: true });
 });
 
-const API_BASE = "http://51.75.118.170:20041/api/v1";
-const MY_PROXY_URL = "/api/proxy?url=";
-const PROXIES = [MY_PROXY_URL, "https://api.allorigins.win/raw?url=", "https://corsproxy.io/?url=", "https://api.codetabs.com/v1/proxy?quest=", "https://api.cors.lol/?url="];
-
-function orderedProxies() {
-  let lastGoodIdx = -1;
-  try { lastGoodIdx = Number(sessionStorage.getItem("pm_last_proxy_idx")); } catch (e) {}
-  const all = PROXIES.map((p, i) => [p, i]);
-  if (!Number.isInteger(lastGoodIdx) || lastGoodIdx <= 0 || lastGoodIdx >= PROXIES.length) return all;
-  return [all[0], all[lastGoodIdx], ...all.filter(([, i]) => i !== 0 && i !== lastGoodIdx)];
-}
+window.PRINCE_CONFIG = PRINCE_CONFIG;
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const memCache = new Map();
@@ -317,7 +474,7 @@ function cacheRead(key) {
   const mem = memCache.get(key);
   if (mem && now - mem.t < CACHE_TTL_MS) return mem.v;
   try {
-    const raw = sessionStorage.getItem("pm_cache:" + key);
+    const raw = sessionStorage.getItem('pm_cache:' + key);
     if (!raw) return null;
     const { t, v } = JSON.parse(raw);
     if (now - t >= CACHE_TTL_MS) return null;
@@ -328,36 +485,24 @@ function cacheRead(key) {
 function cacheWrite(key, v) {
   const entry = { t: Date.now(), v };
   memCache.set(key, entry);
-  try { sessionStorage.setItem("pm_cache:" + key, JSON.stringify(entry)); } catch (e) {}
-  try { localStorage.setItem("pm_lastgood:" + key, JSON.stringify(v)); } catch (e) {}
+  try { sessionStorage.setItem('pm_cache:' + key, JSON.stringify(entry)); } catch (e) {}
+  try { localStorage.setItem('pm_lastgood:' + key, JSON.stringify(v)); } catch (e) {}
 }
 function cacheReadLastGood(key) {
   try {
-    const raw = localStorage.getItem("pm_lastgood:" + key);
+    const raw = localStorage.getItem('pm_lastgood:' + key);
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
 }
 
-class Semaphore {
-  constructor(max) { this.max = max; this.count = 0; this.queue = []; }
-  acquire() {
-    return new Promise(resolve => {
-      const tryAcquire = () => {
-        if (this.count < this.max) { this.count++; resolve(() => this.release()); }
-        else this.queue.push(tryAcquire);
-      };
-      tryAcquire();
-    });
-  }
-  release() { this.count--; const next = this.queue.shift(); if (next) next(); }
-}
-const proxySemaphore = new Semaphore(4);
-
 const isEmptyList = (j) => !!j && Array.isArray(j.data) && j.data.length === 0;
 const pendingReq = new Map();
+
 function apiRaw(path, params = {}) {
-  const u = new URL(API_BASE + path);
-  Object.entries(params).forEach(([k, v]) => { if (v !== null && v !== undefined && v !== "") u.searchParams.set(k, v); });
+  const u = new URL(PRINCE_CONFIG.apiBase + path);
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== null && v !== undefined && v !== '') u.searchParams.set(k, v);
+  });
   const key = u.toString();
   if (pendingReq.has(key)) return pendingReq.get(key);
   const p = apiRawCore(path, params);
@@ -366,73 +511,63 @@ function apiRaw(path, params = {}) {
   p.then(done, done);
   return p;
 }
+
 async function apiRawCore(path, params = {}) {
-  const url = new URL(API_BASE + path);
+  const url = new URL(PRINCE_CONFIG.apiBase + path);
   Object.entries(params).forEach(([k, v]) => {
-    if (v !== null && v !== undefined && v !== "") url.searchParams.set(k, v);
+    if (v !== null && v !== undefined && v !== '') url.searchParams.set(k, v);
   });
   const urlStr = url.toString();
   const cacheKey = urlStr;
   const cached = cacheRead(cacheKey);
   if (cached && !isEmptyList(cached)) return cached;
 
-  const directController = new AbortController();
-  const directTimer = setTimeout(() => directController.abort(), 9000);
-  const directAttempt = fetch(urlStr, { signal: directController.signal })
-    .then(async (res) => {
-      let json;
-      try { json = await res.json(); }
-      catch (e) { throw new Error("Réponse invalide de l'API."); }
-      if (json && json.success === false) {
-        const err = new Error(json.error?.message || "Erreur inconnue.");
-        err.code = json.error?.code;
-        throw err;
-      }
-      return json;
-    })
-    .finally(() => clearTimeout(directTimer));
-
-  const orderedList = orderedProxies();
-  const controllers = orderedList.map(() => new AbortController());
-  const attempts = orderedList.map(([proxy, i], orderIdx) => (async () => {
-    const isInternal = proxy === MY_PROXY_URL;
-    if (!isInternal) {
-      await new Promise((resolve) => {
-        const w = setTimeout(resolve, 3000);
-        controllers[orderIdx].signal.addEventListener("abort", () => { clearTimeout(w); });
-      });
-    }
-    const release = isInternal ? () => {} : await proxySemaphore.acquire();
-    const timer = setTimeout(() => controllers[orderIdx].abort(), isInternal ? 25000 : 9000);
-    try {
-      const res = await fetch(proxy + encodeURIComponent(urlStr), { signal: controllers[orderIdx].signal });
-      let json;
-      try { json = await res.json(); }
-      catch (e) { throw new Error("Réponse invalide du proxy."); }
-      if (!json || json.success === false) {
-        const err = new Error(json?.error?.message || "Erreur inconnue.");
-        err.code = json?.error?.code;
-        throw err;
-      }
-      return json;
-    } catch (e) {
-      throw e;
-    } finally {
-      clearTimeout(timer);
-      if (!isInternal) release();
-    }
-  })());
-
   try {
-    const result = await Promise.any([directAttempt, ...attempts]);
-    cacheWrite(cacheKey, result);
-    return result;
-  } catch (e) {
+    const res = await fetch(urlStr, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    cacheWrite(cacheKey, json);
+    return json;
+  } catch (error) {
     const lastGood = cacheReadLastGood(cacheKey);
     if (lastGood) return lastGood;
-    throw e;
+    throw error;
   }
 }
+
+async function fetchPlayerSourceById(kind, id) {
+  if (!id) return null;
+  const endpointCandidates = [
+    PRINCE_CONFIG.endpoints[kind]?.replace('{id}', encodeURIComponent(id)) || `/${kind}/${encodeURIComponent(id)}`,
+    `/${kind}s/${encodeURIComponent(id)}`,
+    `/${kind}/${encodeURIComponent(id)}/stream`,
+    `/${kind}/${encodeURIComponent(id)}/player`,
+    `/stream/${encodeURIComponent(id)}`,
+    `/video/${encodeURIComponent(id)}`,
+    `/movies/${encodeURIComponent(id)}`,
+    `/episodes/${encodeURIComponent(id)}`
+  ];
+
+  for (const endpoint of endpointCandidates) {
+    try {
+      const payload = await apiRaw(endpoint);
+      const resolved = normalizeApiResponse(payload);
+      if (resolved && resolved.url) return resolved.url;
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+async function autoPlaySelectedMedia(kind, id) {
+  const finalUrl = await fetchPlayerSourceById(kind, id);
+  if (!finalUrl) return false;
+  return setPlayerSource(finalUrl);
+}
+
+window.playMedia = function(kind, id) {
+  return autoPlaySelectedMedia(kind, id);
+};
 </script>
 </body>
 </html>
