@@ -751,6 +751,7 @@
 
     <script>
       const API_BASE = 'http://51.75.118.170:20041/api/v1';
+      const API_PROXY_BASE = '/api/proxy?url=';
       const defaultServers = [
         { name: 'Serveur 1', url: '', type: 'video' },
         { name: 'Serveur 2', url: '', type: 'video' },
@@ -913,7 +914,7 @@
         heroLabel.textContent = t('trailer');
         featuredTitle.textContent = t('loading');
         featuredDescription.textContent = t('loading');
-        favsTitle();
+        if (favoritesTitle) favoritesTitle.textContent = t('myList');
         playerTitle.textContent = t('player');
         document.getElementById('playFeaturedBtn').textContent = '▶ ' + t('watch');
         document.getElementById('addFeaturedBtn').textContent = '＋ ' + t('myList');
@@ -921,13 +922,8 @@
         langToggle.textContent = state.locale.toUpperCase();
         genreFilter.options[0].text = t('allGenres');
         languageFilter.options[0].text = t('allLanguages');
-        favoritesViewAll.textContent = t('viewAll');
+        if (favoritesViewAll) favoritesViewAll.textContent = t('viewAll');
         renderCatalog();
-      }
-
-      function favsTitle() {
-        const favoritesTitleEl = document.getElementById('favoritesTitle');
-        if (favoritesTitleEl) favoritesTitleEl.textContent = t('myList');
       }
 
       function normalizeUrl(url) {
@@ -936,7 +932,7 @@
         if (!clean) return '';
         if (/^https?:\/\//i.test(clean)) {
           if (clean.includes('51.75.118.170')) {
-            return '/api/proxy?url=' + encodeURIComponent(clean);
+            return API_PROXY_BASE + encodeURIComponent(clean);
           }
           return clean;
         }
@@ -955,8 +951,9 @@
       }
 
       async function apiFetch(path, params = {}) {
-        const url = buildApiUrl(path, params);
-        const response = await fetch(url, { headers: { Accept: 'application/json' } });
+        const remoteUrl = buildApiUrl(path, params);
+        const proxiedUrl = API_PROXY_BASE + encodeURIComponent(remoteUrl);
+        const response = await fetch(proxiedUrl, { headers: { Accept: 'application/json' } });
         if (!response.ok) throw new Error(`API Error ${response.status}`);
         return response.json();
       }
