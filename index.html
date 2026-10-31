@@ -128,7 +128,8 @@
       .primary-btn,
       .secondary-btn,
       .server-btn,
-      .close-btn {
+      .close-btn,
+      .detail-action {
         border: none;
         cursor: pointer;
       }
@@ -208,7 +209,7 @@
         border: 1px solid var(--line);
         color: var(--text);
       }
-      .primary-btn:hover, .secondary-btn:hover, .ghost-btn:hover, .lang-toggle:hover { transform: translateY(-1px); }
+      .primary-btn:hover, .secondary-btn:hover, .ghost-btn:hover, .lang-toggle:hover, .detail-action:hover { transform: translateY(-1px); }
 
       .hero-meta {
         display: flex;
@@ -468,6 +469,124 @@
         border-color: transparent;
       }
 
+      .detail-shell {
+        position: fixed;
+        inset: 0;
+        z-index: 99;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: rgba(2, 6, 12, 0.72);
+        backdrop-filter: blur(10px);
+      }
+      .detail-shell.hidden { display: none; }
+
+      .detail-panel {
+        position: relative;
+        width: min(1100px, 100%);
+        max-height: 90vh;
+        overflow: auto;
+        border-radius: 28px;
+        background: rgba(9, 13, 22, 0.96);
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+      .detail-backdrop {
+        position: relative;
+        min-height: 220px;
+        background-size: cover;
+        background-position: center;
+      }
+      .detail-backdrop::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(9, 13, 22, 0.2), rgba(9, 13, 22, 0.95));
+      }
+      .detail-body {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 26px;
+        padding: 24px;
+        margin-top: -80px;
+      }
+      .detail-poster {
+        width: 100%;
+        height: 360px;
+        object-fit: cover;
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: #111;
+      }
+      .detail-meta h2 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 2.5vw, 3.2rem);
+        line-height: 1;
+      }
+      .detail-sub {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        color: var(--muted);
+        margin-bottom: 18px;
+      }
+      .detail-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 14px 0 18px;
+      }
+      .detail-tags span {
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--line);
+        color: #e8effd;
+        font-size: 0.74rem;
+      }
+      .detail-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+      .detail-action {
+        padding: 12px 18px;
+        border-radius: 12px;
+        font-weight: 800;
+      }
+      .detail-action.primary {
+        background: linear-gradient(135deg, var(--red), var(--red-2));
+        color: white;
+      }
+      .detail-action.secondary {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      .detail-description {
+        color: #dfe7f7;
+        line-height: 1.8;
+        margin: 0;
+      }
+      .close-detail {
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        z-index: 2;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: rgba(9, 13, 22, 0.75);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: var(--text);
+        cursor: pointer;
+      }
+
       .empty-state, .loading-state {
         display: grid;
         place-items: center;
@@ -481,7 +600,7 @@
       .hidden { display: none !important; }
 
       @media (max-width: 980px) {
-        .feature-hero, .player-layout {
+        .feature-hero, .player-layout, .detail-body {
           grid-template-columns: 1fr;
         }
       }
@@ -496,6 +615,7 @@
         .search-box { width: 100%; min-width: 0; }
         .app-shell { padding-inline: 12px; }
         .feature-hero { padding: 18px; }
+        .detail-body { padding: 18px; }
       }
     </style>
   </head>
@@ -569,6 +689,31 @@
         </section>
       </main>
     </div>
+
+    <aside id="detailPanel" class="detail-shell hidden" aria-live="polite">
+      <div class="detail-panel">
+        <button id="closeDetailBtn" class="close-detail" type="button" aria-label="Fermer">✕</button>
+        <div id="detailBackdrop" class="detail-backdrop"></div>
+        <div class="detail-body">
+          <img id="detailPoster" class="detail-poster" src="" alt="Poster" />
+          <div class="detail-meta">
+            <h2 id="detailTitle">Titre</h2>
+            <div class="detail-sub">
+              <span id="detailYear">2026</span>
+              <span id="detailType">Film</span>
+              <span id="detailLanguage">VF</span>
+              <span id="detailRating">8.9</span>
+            </div>
+            <div class="detail-tags" id="detailTags"></div>
+            <div class="detail-actions">
+              <button id="detailPlayBtn" class="detail-action primary" type="button">▶ Lecture</button>
+              <button id="detailTrailerBtn" class="detail-action secondary" type="button">＋ Ma liste</button>
+            </div>
+            <p id="detailDescription" class="detail-description"></p>
+          </div>
+        </div>
+      </div>
+    </aside>
 
     <aside id="playerPanel" class="player-panel" aria-live="polite">
       <div class="player-head">
@@ -685,6 +830,16 @@
       const infoDescription = document.getElementById('infoDescription');
       const infoTags = document.getElementById('infoTags');
       const playerTitle = document.getElementById('playerTitle');
+      const detailPanel = document.getElementById('detailPanel');
+      const detailBackdrop = document.getElementById('detailBackdrop');
+      const detailPoster = document.getElementById('detailPoster');
+      const detailTitle = document.getElementById('detailTitle');
+      const detailYear = document.getElementById('detailYear');
+      const detailType = document.getElementById('detailType');
+      const detailLanguage = document.getElementById('detailLanguage');
+      const detailRating = document.getElementById('detailRating');
+      const detailDescription = document.getElementById('detailDescription');
+      const detailTags = document.getElementById('detailTags');
 
       function t(key) {
         return translations[state.locale]?.[key] || translations.fr[key] || key;
@@ -752,11 +907,6 @@
           if (value !== undefined && value !== null && value !== '') return value;
         }
         return undefined;
-      }
-
-      function toNumber(value, fallback = 0) {
-        const n = Number(value);
-        return Number.isFinite(n) ? n : fallback;
       }
 
       function extractArray(payload) {
@@ -987,7 +1137,7 @@
         catalogGrid.querySelectorAll('.movie-card').forEach((card) => {
           card.addEventListener('click', () => {
             const item = state.items.find((entry) => String(entry.id) === card.dataset.id);
-            if (item) openPlayer(item);
+            if (item) openDetail(item);
           });
         });
       }
@@ -1081,6 +1231,7 @@
       }
 
       async function openPlayer(item) {
+        closeDetail();
         state.selected = item;
         infoTitle.textContent = item.title;
         infoDescription.textContent = item.description;
@@ -1106,6 +1257,35 @@
         });
 
         await playWithServer(item, state.activeServerIndex);
+      }
+
+      function openDetail(item) {
+        state.selected = item;
+        const poster = getPoster(item);
+        detailBackdrop.style.backgroundImage = `linear-gradient(180deg, rgba(9,13,22,0.2), rgba(9,13,22,0.95)), url('${poster}')`;
+        detailPoster.src = poster;
+        detailTitle.textContent = item.title;
+        detailYear.textContent = item.year || '2026';
+        detailType.textContent = pickTypeLabel(item.type);
+        detailLanguage.textContent = getLanguageBadge(item.language);
+        detailRating.textContent = item.rating || '8.9';
+        detailDescription.textContent = item.description;
+
+        const tagList = [
+          item.quality || 'HD',
+          ...(item.genres || []).slice(0, 4),
+          getLanguageBadge(item.language)
+        ];
+        detailTags.innerHTML = tagList.map((tag) => `<span>${tag}</span>`).join('');
+
+        document.getElementById('detailPlayBtn').onclick = () => openPlayer(item);
+        document.getElementById('detailTrailerBtn').onclick = () => openPlayer(item);
+
+        detailPanel.classList.remove('hidden');
+      }
+
+      function closeDetail() {
+        detailPanel.classList.add('hidden');
       }
 
       function extractHomeList(payload) {
@@ -1158,6 +1338,7 @@
       });
 
       document.getElementById('closePlayerBtn').addEventListener('click', () => setPlayerVisible(false));
+      document.getElementById('closeDetailBtn').addEventListener('click', closeDetail);
       document.getElementById('langToggle').addEventListener('click', () => {
         state.locale = state.locale === 'fr' ? 'en' : 'fr';
         applyTranslations();
@@ -1165,7 +1346,14 @@
 
       document.getElementById('addFeaturedBtn').addEventListener('click', () => {
         const featured = state.items[0];
-        if (featured) openPlayer(featured);
+        if (featured) openDetail(featured);
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeDetail();
+          setPlayerVisible(false);
+        }
       });
 
       window.addEventListener('DOMContentLoaded', () => {
