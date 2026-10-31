@@ -133,7 +133,7 @@ module.exports = async function handler(req, res) {
     }
   } catch (e) {
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(502).json({ error: 'Tous les serveurs sont indisponibles pour le moment' });
+    return res.status(502).json({ error: 'Tous les serveurs sont indisponibles pour le moment', detail: String((e && (e.cause && e.cause.code || e.message)) || e) });
   }
 
   const type = r.headers.get('content-type') || '';
