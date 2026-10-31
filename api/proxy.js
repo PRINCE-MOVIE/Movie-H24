@@ -1,177 +1,122 @@
-// api/proxy.js — Fonction serverless Vercel
-//
-// Rôle : faire passer l'API (http) par ton site (https) pour que les films,
-// images et vidéos se lisent normalement, et basculer automatiquement sur un
-// autre serveur si le premier ne répond pas.
-//
-// Utilisation côté site :
-//   /api/proxy?path=/films            → appelle  <serveur>/films
-//   /api/proxy?u=http://IP:PORT/x.mp4 → vidéo / image d'un de tes serveurs
-//
-// Ajouter des serveurs : liste ci-dessous, ou variable d'environnement Vercel
-//   API_SERVERS="http://51.75.118.170:20041,http://AUTRE-IP:PORT"
-// Hôtes externes autorisés pour les vidéos (CDN…) :
-//   ALLOWED_HOSTS="cdn.exemple.com,autre-cdn.com"
-
-const { Readable } = require('stream');
+/**
+ * PRINCE MOVIE — api/proxy.js (fonction serverless Vercel)
+ * --------------------------------------------------------
+ * Relaie l'API HTTP vers le site HTTPS, avec bascule automatique entre
+ * plusieurs serveurs. Appel : /api/proxy?url=<adresse complète encodée>
+ *
+ * Ajouter des serveurs de secours (même format que le premier) :
+ *   - soit dans la liste DEFAULT_SERVERS ci-dessous,
+ *   - soit dans Vercel > Settings > Environment Variables :
+ *       API_SERVERS = http://51.75.118.170:20041,http://AUTRE-IP:PORT
+ *
+ * IMPORTANT : ce fichier utilise la syntaxe "export default". Il faut donc
+ * le package.json fourni à côté ({"type":"module"}), sinon Vercel plante.
+ */
 
 const DEFAULT_SERVERS = [
-  'http://51.75.118.170:20041'
-  // 'http://SERVEUR-2:PORT',
-  // 'http://SERVEUR-3:PORT',
+  "http://51.75.118.170:20041",
+  // "http://SERVEUR-2:PORT",
 ];
 
-const clean = s => s.trim().replace(/\/+$/, '');
-const SERVERS = (process.env.API_SERVERS ? process.env.API_SERVERS.split(',') : DEFAULT_SERVERS).map(clean).filter(Boolean);
-const ALLOWED_HOSTS = (process.env.ALLOWED_HOSTS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+const clean = (s) => s.trim().replace(/\/+$/, "");
+const SERVERS = (process.env.API_SERVERS ? process.env.API_SERVERS.split(",") : DEFAULT_SERVERS)
+  .map(clean).filter(Boolean);
 
-const TIMEOUT_MS = 8000;      // attente max avant de passer au serveur suivant
-const COOLDOWN_MS = 30000;    // un serveur en panne est mis de côté 30 s
-const down = new Map();       // serveur -> date de fin de mise de côté
+const TIMEOUT_MS = 9000;     // attente max par serveur avant de passer au suivant
+const COOLDOWN_MS = 30000;   // un serveur en panne est mis de côté 30 s
+const down = new Map();
 
-function order() {
+function orderedServers() {
   const now = Date.now();
-  const up = SERVERS.filter(s => (down.get(s) || 0) <= now);
-  const rest = SERVERS.filter(s => !up.includes(s));
-  return [...up, ...rest];
+  const up = SERVERS.filter((s) => (down.get(s) || 0) <= now);
+  return [...up, ...SERVERS.filter((s) => !up.includes(s))];
 }
 
-async function fetchWithTimeout(url, headers) {
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+// Empêche d'utiliser le proxy pour atteindre le réseau interne.
+function isPrivateHost(h) {
+  h = h.toLowerCase();
+  return h === "localhost" || h.endsWith(".local") || h.endsWith(".internal") ||
+    /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h) ||
+    h === "::1" || h.startsWith("[");
+}
+
+async function get(url) {
+  return fetch(url, {
+    headers: { Accept: "*/*", "User-Agent": "Mozilla/5.0 (compatible; PrinceMovieProxy/2.0)" },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+    redirect: "follow",
+  });
+}
+
+function fail(res, status, message) {
+  res.setHeader("Cache-Control", "no-store");
+  res.status(status).json({ success: false, error: { message } });
+}
+
+export default async function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(204).end();
+  if (req.method !== "GET" && req.method !== "HEAD") return fail(res, 405, "Méthode non autorisée.");
+
+  let raw = Array.isArray(req.query.url) ? req.query.url[0] : req.query.url;
+  if (!raw) return fail(res, 400, "Paramètre 'url' manquant.");
+  // Vercel a déjà décodé le paramètre : on ne le décode PAS une 2e fois
+  // (ça cassait les recherches avec accents ou "%"). Seule exception :
+  // une adresse encore encodée ("http%3A%2F%2F...").
+  if (/^https?%3A/i.test(raw)) { try { raw = decodeURIComponent(raw); } catch (e) {} }
+
+  let target;
+  try { target = new URL(raw); } catch (e) { return fail(res, 400, "Adresse invalide."); }
+  if (target.protocol !== "http:" && target.protocol !== "https:") return fail(res, 400, "Protocole non autorisé.");
+
+  const isApi = SERVERS.includes(target.origin);
+  if (!isApi && isPrivateHost(target.hostname)) return fail(res, 403, "URL cible non autorisée.");
+
+  let upstream = null;
   try {
-    return await fetch(url, { headers, signal: ctl.signal, redirect: 'follow' });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-// Essaie chaque serveur dans l'ordre jusqu'à obtenir une réponse correcte.
-async function fromServers(path, headers) {
-  let lastError = new Error('Aucun serveur configuré');
-  for (const base of order()) {
-    try {
-      const r = await fetchWithTimeout(base + path, headers);
-      if (r.status >= 500) {
-        down.set(base, Date.now() + COOLDOWN_MS);
-        lastError = new Error(`${base} → ${r.status}`);
-        continue;
+    if (isApi) {
+      // Même chemin, essayé sur chaque serveur jusqu'à obtenir une réponse.
+      const pathAndQuery = target.pathname + target.search;
+      let lastErr = new Error("Aucun serveur");
+      for (const base of orderedServers()) {
+        try {
+          const r = await get(base + pathAndQuery);
+          if (r.status >= 500) { down.set(base, Date.now() + COOLDOWN_MS); lastErr = new Error(base + " → " + r.status); continue; }
+          upstream = r;
+          res.setHeader("X-Upstream", base);
+          break;
+        } catch (e) { down.set(base, Date.now() + COOLDOWN_MS); lastErr = e; }
       }
-      return { r, base };
-    } catch (e) {
-      down.set(base, Date.now() + COOLDOWN_MS);
-      lastError = e;
-    }
-  }
-  throw lastError;
-}
-
-function safePath(p) {
-  if (!p) return null;
-  if (!p.startsWith('/')) p = '/' + p;
-  if (p.startsWith('//') || p.includes('..') || p.includes('://') || /[\r\n]/.test(p)) return null;
-  return p;
-}
-
-// Réécrit une playlist .m3u8 pour que les segments passent aussi par le proxy.
-function rewriteM3u8(text, basePath, baseOrigin) {
-  const dir = basePath.replace(/[?#].*$/, '').replace(/[^/]*$/, '');
-  const wrap = line => {
-    const l = line.trim();
-    if (!l) return line;
-    if (l.startsWith('#')) {
-      return line.replace(/URI="([^"]+)"/g, (_, uri) => `URI="${wrapUri(uri)}"`);
-    }
-    return wrapUri(l);
-  };
-  const wrapUri = uri => {
-    if (/^https?:\/\//i.test(uri)) return `/api/proxy?u=${encodeURIComponent(uri)}`;
-    const abs = uri.startsWith('/') ? uri : dir + uri;
-    return `/api/proxy?path=${encodeURIComponent(abs)}`;
-  };
-  return text.split(/\r?\n/).map(wrap).join('\n');
-}
-
-module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type');
-  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-  if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'GET' && req.method !== 'HEAD') return res.status(405).json({ error: 'Méthode non autorisée' });
-
-  const q = new URL(req.url, 'http://localhost').searchParams;
-  let path = q.get('path');
-  const u = q.get('u');
-  let direct = null;
-
-  if (u) {
-    let url;
-    try { url = new URL(u); } catch (e) { return res.status(400).json({ error: 'Adresse invalide' }); }
-    if (SERVERS.includes(url.origin)) {
-      path = url.pathname + url.search;          // même serveur → bascule possible
-    } else if (ALLOWED_HOSTS.includes(url.hostname.toLowerCase())) {
-      direct = url.href;                          // hôte externe autorisé
+      if (!upstream) throw lastErr;
     } else {
-      return res.status(403).json({ error: 'Hôte non autorisé' });
+      // Autre hôte (ex. image hébergée ailleurs) : on ne relaie que des images.
+      upstream = await get(target.href);
+      const ct = upstream.headers.get("content-type") || "";
+      if (!/^image\//i.test(ct)) return fail(res, 403, "URL cible non autorisée.");
     }
+  } catch (err) {
+    return fail(res, 502, "Impossible de contacter l'API source (délai dépassé ou serveur injoignable).");
   }
 
-  if (!direct) {
-    path = safePath(path);
-    if (!path) return res.status(400).json({ error: 'Paramètre path manquant ou invalide' });
+  const contentType = upstream.headers.get("content-type") || "application/json";
+  res.status(upstream.status);
+  res.setHeader("Content-Type", contentType);
+
+  if (/^(application\/json|text\/|application\/javascript)/i.test(contentType)) {
+    const text = await upstream.text();
+    // Cache navigateur/CDN seulement pour les réponses utiles : jamais une
+    // erreur ni une liste vide (sinon elle resterait affichée vide).
+    const cacheable = upstream.status === 200 &&
+      !/"success"\s*:\s*false/.test(text) && !/"data"\s*:\s*\[\s*\]/.test(text);
+    res.setHeader("Cache-Control", cacheable
+      ? "public, s-maxage=300, stale-while-revalidate=86400, stale-if-error=86400"
+      : "no-store");
+    return res.send(text);
   }
 
-  const headers = { 'User-Agent': 'Mozilla/5.0 (compatible; AzurProxy/1.0)', Accept: req.headers.accept || '*/*' };
-  if (req.headers.range) headers.Range = req.headers.range;
-
-  let r, base = null;
-  try {
-    if (direct) {
-      r = await fetchWithTimeout(direct, headers);
-    } else {
-      ({ r, base } = await fromServers(path, headers));
-    }
-  } catch (e) {
-    res.setHeader('Cache-Control', 'no-store');
-    return res.status(502).json({ error: 'Tous les serveurs sont indisponibles pour le moment', detail: String((e && (e.cause && e.cause.code || e.message)) || e) });
-  }
-
-  const type = r.headers.get('content-type') || '';
-  const target = direct || path;
-  const isM3u8 = /mpegurl/i.test(type) || /\.m3u8(\?|$)/i.test(target);
-  const isJson = /json/i.test(type);
-  const isImage = /^image\//i.test(type);
-
-  res.status(r.status);
-  if (base) res.setHeader('X-Upstream', base);
-  if (type) res.setHeader('Content-Type', type);
-
-  // Cache : limite la charge sur l'API et garde le site en vie si elle tombe.
-  if (r.status === 200 || r.status === 206) {
-    if (isJson) res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=86400, stale-if-error=86400');
-    else if (isImage) res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
-    else if (isM3u8) res.setHeader('Cache-Control', 'no-store');
-    else res.setHeader('Cache-Control', 'public, max-age=600');
-  } else {
-    res.setHeader('Cache-Control', 'no-store');
-  }
-
-  if (isM3u8 && r.status === 200) {
-    const text = await r.text();
-    res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-    return res.send(rewriteM3u8(text, target, base));
-  }
-
-  for (const h of ['content-length', 'content-range', 'accept-ranges', 'etag', 'last-modified']) {
-    const v = r.headers.get(h);
-    if (v) res.setHeader(h, v);
-  }
-
-  if (req.method === 'HEAD' || !r.body) return res.end();
-
-  // Lecture en flux : la vidéo démarre sans attendre le fichier entier.
-  const stream = Readable.fromWeb(r.body);
-  stream.on('error', () => res.destroy());
-  req.on('close', () => stream.destroy());
-  stream.pipe(res);
-};
+  // Images et autres contenus binaires : relayés tels quels.
+  res.setHeader("Cache-Control", upstream.status === 200 ? "public, max-age=86400, s-maxage=86400" : "no-store");
+  return res.send(Buffer.from(await upstream.arrayBuffer()));
+}
