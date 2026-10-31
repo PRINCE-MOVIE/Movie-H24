@@ -3,27 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b0d14" />
-    <title>PRINCE MOVIE | Streaming pro</title>
+    <meta name="theme-color" content="#090d17" />
+    <title>PRINCE MOVIE | Streaming premium</title>
     <style>
       :root {
-        --bg: #070b13;
-        --bg-2: #101827;
-        --panel: rgba(17, 24, 39, 0.92);
-        --panel-soft: rgba(15, 21, 32, 0.8);
-        --card: #0f172a;
-        --card-2: #111827;
-        --card-3: #182334;
-        --muted: #a7b0c0;
-        --text: #edf3ff;
+        --bg: #080d17;
+        --bg-soft: #111827;
+        --panel: rgba(11, 17, 26, 0.9);
+        --card: rgba(18, 25, 39, 0.92);
+        --card-2: rgba(17, 24, 39, 0.9);
         --line: rgba(148, 163, 184, 0.18);
+        --text: #edf3ff;
+        --muted: #a7b0c0;
+        --red: #ff3b57;
+        --red-2: #ff7a59;
         --gold: #f4c96d;
-        --red: #ff385c;
-        --red-2: #ff6b57;
-        --blue: #5aa9ff;
         --green: #4ade80;
+        --blue: #5aa9ff;
         --shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
-        --radius: 20px;
       }
 
       * { box-sizing: border-box; }
@@ -32,22 +29,21 @@
         margin: 0;
         min-height: 100vh;
         background:
-          radial-gradient(circle at top, rgba(255, 56, 92, 0.18), transparent 28%),
-          linear-gradient(180deg, #050a12 0%, #0b1220 100%);
+          radial-gradient(circle at 15% 0%, rgba(255, 59, 87, 0.18), transparent 22%),
+          radial-gradient(circle at 80% 10%, rgba(90, 169, 255, 0.12), transparent 18%),
+          linear-gradient(180deg, #050b13 0%, #0c1320 100%);
         color: var(--text);
         font-family: Arial, Helvetica, sans-serif;
       }
 
-      img { display: block; max-width: 100%; }
       a { color: inherit; text-decoration: none; }
-      button, input, select {
-        font: inherit;
-      }
+      button, input, select { font: inherit; }
+      img { display: block; max-width: 100%; }
 
       .app-shell {
         max-width: 1460px;
         margin: 0 auto;
-        padding: 20px 18px 60px;
+        padding: 22px 16px 70px;
       }
 
       .site-header {
@@ -57,14 +53,13 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 20px;
+        gap: 18px;
         padding: 18px 22px;
         margin-bottom: 22px;
-        background: rgba(7, 11, 19, 0.74);
+        background: rgba(8, 13, 23, 0.72);
         border: 1px solid var(--line);
         border-radius: 18px;
         backdrop-filter: blur(18px);
-        -webkit-backdrop-filter: blur(18px);
       }
 
       .brand {
@@ -83,8 +78,7 @@
         height: 36px;
         border-radius: 12px;
         background: linear-gradient(135deg, var(--red), var(--red-2));
-        color: #fff;
-        box-shadow: 0 18px 30px rgba(255, 56, 92, 0.35);
+        box-shadow: 0 18px 30px rgba(255, 59, 87, 0.35);
       }
 
       .nav {
@@ -92,15 +86,15 @@
         align-items: center;
         gap: 20px;
         color: var(--muted);
-        font-weight: 600;
+        font-weight: 700;
       }
       .nav a {
         padding: 8px 12px;
         border-radius: 10px;
-        transition: 0.22s ease;
+        transition: 0.18s ease;
       }
       .nav a:hover, .nav a.active {
-        background: rgba(255, 56, 92, 0.08);
+        background: rgba(255, 59, 87, 0.08);
         color: var(--text);
       }
 
@@ -114,30 +108,37 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        min-width: 280px;
+        min-width: 300px;
         padding: 10px 14px;
-        border: 1px solid var(--line);
         border-radius: 14px;
+        border: 1px solid var(--line);
         background: rgba(255,255,255,0.03);
       }
       .search-box input {
         width: 100%;
         background: transparent;
         border: none;
-        color: var(--text);
         outline: none;
+        color: var(--text);
       }
       .search-box input::placeholder { color: var(--muted); }
 
-      .ghost-btn, .primary-btn, .secondary-btn, .filter-btn, .server-btn, .close-btn {
+      .lang-toggle,
+      .ghost-btn,
+      .primary-btn,
+      .secondary-btn,
+      .server-btn,
+      .close-btn {
         border: none;
         cursor: pointer;
       }
+
+      .lang-toggle,
       .ghost-btn {
         padding: 10px 14px;
         border-radius: 12px;
         border: 1px solid var(--line);
-        background: rgba(255,255,255,0.02);
+        background: rgba(255,255,255,0.03);
         color: var(--text);
       }
 
@@ -147,11 +148,11 @@
         gap: 26px;
         align-items: center;
         min-height: 430px;
-        padding: 26px;
+        padding: 28px;
         border: 1px solid var(--line);
         border-radius: 28px;
         background:
-          linear-gradient(90deg, rgba(9, 13, 22, 0.9), rgba(9, 13, 22, 0.45)),
+          linear-gradient(90deg, rgba(8, 13, 23, 0.9), rgba(8, 13, 23, 0.44)),
           url('https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=1600&q=80') center/cover no-repeat;
         box-shadow: var(--shadow);
       }
@@ -159,32 +160,28 @@
       .hero-copy {
         max-width: 620px;
       }
-
       .eyebrow {
         display: inline-block;
         padding: 8px 12px;
         border-radius: 999px;
-        background: rgba(255, 56, 92, 0.15);
-        border: 1px solid rgba(255, 56, 92, 0.35);
-        color: #ffafc1;
+        background: rgba(255, 59, 87, 0.14);
+        border: 1px solid rgba(255, 59, 87, 0.38);
+        color: #ffbfd1;
         font-size: 0.72rem;
         letter-spacing: 0.12em;
         font-weight: 800;
         text-transform: uppercase;
       }
-
       .hero-copy h1 {
         margin: 18px 0 14px;
-        font-size: clamp(2.5rem, 3vw, 5rem);
+        font-size: clamp(2.6rem, 3vw, 5rem);
         line-height: 0.9;
         letter-spacing: -0.06em;
       }
-
       .hero-copy p {
         margin: 0;
-        max-width: 560px;
-        color: #d7e0ee;
-        line-height: 1.72;
+        color: #dfe9f8;
+        line-height: 1.75;
         font-size: 1.02rem;
       }
 
@@ -193,15 +190,14 @@
         align-items: center;
         gap: 14px;
         flex-wrap: wrap;
-        margin-top: 26px;
+        margin-top: 24px;
       }
-
       .primary-btn, .secondary-btn {
-        padding: 13px 22px;
         min-width: 140px;
+        padding: 13px 22px;
         border-radius: 12px;
         font-weight: 800;
-        transition: transform 0.2s ease;
+        transition: transform 0.18s ease;
       }
       .primary-btn {
         background: linear-gradient(135deg, var(--red), var(--red-2));
@@ -212,22 +208,22 @@
         border: 1px solid var(--line);
         color: var(--text);
       }
-      .primary-btn:hover, .secondary-btn:hover, .ghost-btn:hover { transform: translateY(-2px); }
+      .primary-btn:hover, .secondary-btn:hover, .ghost-btn:hover, .lang-toggle:hover { transform: translateY(-1px); }
 
       .hero-meta {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 12px;
         flex-wrap: wrap;
         margin-top: 18px;
-        color: #e8edf9;
-        font-size: 0.88rem;
       }
       .hero-meta span {
         padding: 7px 10px;
-        border: 1px solid rgba(255,255,255,0.08);
-        background: rgba(9, 13, 22, 0.52);
         border-radius: 999px;
+        background: rgba(11, 17, 26, 0.56);
+        border: 1px solid rgba(255,255,255,0.08);
+        color: #ebf2ff;
+        font-size: 0.82rem;
       }
 
       .hero-poster {
@@ -251,36 +247,34 @@
         content: "";
         position: absolute;
         inset: 0;
-        background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.2) 50%, rgba(0,0,0,.76) 100%);
+        background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.16) 50%, rgba(0,0,0,0.76) 100%);
       }
 
       .toolbar {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 14px;
+        gap: 12px;
         flex-wrap: wrap;
         margin: 26px 0 8px;
       }
-
       .filter-wrap {
         display: flex;
         align-items: center;
         gap: 12px;
         flex-wrap: wrap;
       }
-
       .toolbar select {
+        min-width: 180px;
         padding: 10px 14px;
-        min-width: 170px;
-        border: 1px solid var(--line);
-        background: rgba(15,23,42,0.9);
-        color: var(--text);
         border-radius: 12px;
+        background: rgba(17,24,39,0.9);
+        border: 1px solid var(--line);
+        color: var(--text);
         outline: none;
       }
 
-      .section-block { margin-top: 28px; }
+      .section-block { margin-top: 30px; }
       .section-head {
         display: flex;
         align-items: center;
@@ -305,13 +299,12 @@
 
       .movie-card {
         position: relative;
+        background: var(--card);
+        border: 1px solid var(--line);
         border-radius: 18px;
         overflow: hidden;
-        border: 1px solid var(--line);
-        background: var(--card);
-        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
         cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
       }
       .movie-card:hover {
         transform: translateY(-5px);
@@ -332,7 +325,6 @@
       }
       .card-title {
         display: block;
-        max-width: 100%;
         font-size: 0.95rem;
         font-weight: 800;
         white-space: nowrap;
@@ -362,9 +354,8 @@
       }
       .lang-badge.vf { background: rgba(90,169,255,0.14); color: #bfe0ff; }
       .lang-badge.vostfr { background: rgba(74,222,128,0.12); color: #c9f7d5; }
-      .lang-badge.vostfr { background: rgba(74,222,128,0.12); color: #c9f7d5; }
       .lang-badge.vo { background: rgba(244,201,109,0.12); color: #ffe8b0; }
-      .lang-badge.hd { background: rgba(255,56,92,0.12); color: #ffd2dc; }
+      .lang-badge.hd { background: rgba(255,59,87,0.12); color: #ffd3db; }
 
       .movie-card .top-badge {
         position: absolute;
@@ -383,9 +374,9 @@
 
       .player-panel {
         display: none;
-        margin-top: 28px;
+        margin-top: 32px;
         border: 1px solid var(--line);
-        border-radius: 24px;
+        border-radius: 22px;
         background: rgba(9, 13, 22, 0.88);
         overflow: hidden;
       }
@@ -425,8 +416,8 @@
         width: 100%;
         height: 100%;
         min-height: 420px;
-        border: none;
         background: #000;
+        border: none;
       }
 
       .player-info {
@@ -439,7 +430,7 @@
         margin: 0 0 10px;
         font-size: clamp(1.35rem, 2vw, 2rem);
       }
-      .player-info .player-summary {
+      .player-summary {
         margin: 0 0 16px;
         color: var(--muted);
         line-height: 1.7;
@@ -477,14 +468,14 @@
         border-color: transparent;
       }
 
-      .loading-state, .empty-state {
+      .empty-state, .loading-state {
         display: grid;
         place-items: center;
         min-height: 180px;
-        color: var(--muted);
         border: 1px dashed var(--line);
         border-radius: 16px;
         background: rgba(255,255,255,0.015);
+        color: var(--muted);
       }
 
       .hidden { display: none !important; }
@@ -493,7 +484,6 @@
         .feature-hero, .player-layout {
           grid-template-columns: 1fr;
         }
-        .hero-poster-card { max-width: 370px; }
       }
 
       @media (max-width: 740px) {
@@ -503,7 +493,7 @@
         }
         .nav { order: 3; width: 100%; justify-content: center; overflow-x: auto; }
         .header-tools { width: 100%; justify-content: center; }
-        .search-box { min-width: 0; width: 100%; }
+        .search-box { width: 100%; min-width: 0; }
         .app-shell { padding-inline: 12px; }
         .feature-hero { padding: 18px; }
       }
@@ -525,20 +515,20 @@
             <span>⌕</span>
             <input id="searchInput" type="text" placeholder="Rechercher un film ou une série" />
           </div>
-          <button class="ghost-btn">FR</button>
+          <button id="langToggle" class="lang-toggle" type="button">FR</button>
         </div>
       </header>
 
       <main>
-        <section class="feature-hero" id="heroBanner">
+        <section class="feature-hero">
           <div class="hero-copy">
             <span class="eyebrow" id="heroLabel">À l'affiche</span>
             <h1 id="featuredTitle">Chargement...</h1>
             <p id="featuredDescription">Chargement du programme...</p>
 
             <div class="hero-actions">
-              <button class="primary-btn" id="playFeaturedBtn">▶ Lecture</button>
-              <button class="secondary-btn" id="addFeaturedBtn">＋ Ma liste</button>
+              <button class="primary-btn" id="playFeaturedBtn" type="button">▶ Lecture</button>
+              <button class="secondary-btn" id="addFeaturedBtn" type="button">＋ Ma liste</button>
             </div>
 
             <div class="hero-meta">
@@ -572,8 +562,8 @@
 
         <section class="section-block">
           <div class="section-head">
-            <h2>Catalogue</h2>
-            <a href="#">Voir tout</a>
+            <h2 id="catalogTitle">Catalogue</h2>
+            <a href="#" id="catalogViewAll">Voir tout</a>
           </div>
           <div id="catalogGrid" class="catalog-grid"></div>
         </section>
@@ -602,20 +592,81 @@
 
     <script>
       const API_BASE = 'http://51.75.118.170:20041/api/v1';
+      const defaultServers = [
+        { name: 'Serveur 1', url: '' },
+        { name: 'Serveur 2', url: '' },
+        { name: 'Serveur 3', url: '' },
+        { name: 'Serveur 4', url: '' },
+        { name: 'Serveur 5', url: '' }
+      ];
+
+      const translations = {
+        fr: {
+          home: 'Accueil',
+          films: 'Films',
+          series: 'Séries',
+          news: 'Nouveautés',
+          list: 'Ma liste',
+          search: 'Rechercher un film ou une série',
+          trailer: 'À l\'affiche',
+          watch: 'Lecture',
+          myList: 'Ma liste',
+          catalog: 'Catalogue',
+          viewAll: 'Voir tout',
+          allGenres: 'Tous les genres',
+          allLanguages: 'Toutes les langues',
+          loading: 'Chargement...',
+          noResults: 'Aucun résultat trouvé.',
+          noApi: 'Impossible de récupérer le catalogue. Vérifiez l\'API.',
+          noSource: 'Aucune source de lecture disponible pour ce titre pour le moment. Réessayez plus tard.',
+          player: 'Lecture',
+          server: 'Serveur',
+          movie: 'Film',
+          seriesType: 'Série',
+          quality: 'HD'
+        },
+        en: {
+          home: 'Home',
+          films: 'Movies',
+          series: 'Series',
+          news: 'New',
+          list: 'My list',
+          search: 'Search for a movie or series',
+          trailer: 'Featured',
+          watch: 'Watch',
+          myList: 'My list',
+          catalog: 'Catalog',
+          viewAll: 'View all',
+          allGenres: 'All genres',
+          allLanguages: 'All languages',
+          loading: 'Loading...',
+          noResults: 'No results found.',
+          noApi: 'Unable to load the catalog. Please check the API.',
+          noSource: 'No playback source is available for this title right now. Please try again later.',
+          player: 'Player',
+          server: 'Server',
+          movie: 'Movie',
+          seriesType: 'Series',
+          quality: 'HD'
+        }
+      };
+
       const state = {
+        locale: 'fr',
         items: [],
         filtered: [],
         selected: null,
         activeServerIndex: 0,
-        activeTypeFilter: 'Tout',
-        activeLanguageFilter: 'Tous',
+        activeGenre: 'Tout',
+        activeLanguage: 'Tous',
         search: ''
       };
 
       const catalogGrid = document.getElementById('catalogGrid');
-      const heroTitle = document.getElementById('featuredTitle');
-      const heroDescription = document.getElementById('featuredDescription');
-      const heroPoster = document.getElementById('featuredPoster');
+      const heroLabel = document.getElementById('heroLabel');
+      const featuredTitle = document.getElementById('featuredTitle');
+      const featuredDescription = document.getElementById('featuredDescription');
+      const featuredPoster = document.getElementById('featuredPoster');
       const featuredYear = document.getElementById('featuredYear');
       const featuredRating = document.getElementById('featuredRating');
       const featuredLang = document.getElementById('featuredLang');
@@ -623,6 +674,9 @@
       const genreFilter = document.getElementById('genreFilter');
       const languageFilter = document.getElementById('languageFilter');
       const searchInput = document.getElementById('searchInput');
+      const catalogTitle = document.getElementById('catalogTitle');
+      const catalogViewAll = document.getElementById('catalogViewAll');
+      const langToggle = document.getElementById('langToggle');
       const playerPanel = document.getElementById('playerPanel');
       const videoPlayer = document.getElementById('videoPlayer');
       const embedPlayer = document.getElementById('embedPlayer');
@@ -630,6 +684,32 @@
       const infoTitle = document.getElementById('infoTitle');
       const infoDescription = document.getElementById('infoDescription');
       const infoTags = document.getElementById('infoTags');
+      const playerTitle = document.getElementById('playerTitle');
+
+      function t(key) {
+        return translations[state.locale]?.[key] || translations.fr[key] || key;
+      }
+
+      function applyTranslations() {
+        const navs = document.querySelectorAll('.nav a');
+        const texts = ['home', 'films', 'series', 'news', 'list'];
+        navs.forEach((link, index) => {
+          if (texts[index]) link.textContent = t(texts[index]);
+        });
+
+        heroLabel.textContent = t('trailer');
+        featuredTitle.textContent = t('loading');
+        featuredDescription.textContent = t('loading');
+        catalogTitle.textContent = t('catalog');
+        catalogViewAll.textContent = t('viewAll');
+        playerTitle.textContent = t('player');
+        document.getElementById('playFeaturedBtn').textContent = '▶ ' + t('watch');
+        document.getElementById('addFeaturedBtn').textContent = '＋ ' + t('myList');
+        searchInput.placeholder = t('search');
+        langToggle.textContent = state.locale.toUpperCase();
+        genreFilter.options[0].text = t('allGenres');
+        languageFilter.options[0].text = t('allLanguages');
+      }
 
       function normalizeUrl(url) {
         if (!url || typeof url !== 'string') return '';
@@ -641,9 +721,7 @@
           }
           return clean;
         }
-        if (clean.startsWith('//')) {
-          return 'https:' + clean;
-        }
+        if (clean.startsWith('//')) return 'https:' + clean;
         return clean;
       }
 
@@ -663,14 +741,8 @@
 
       async function apiFetch(path, params = {}) {
         const url = buildApiUrl(path, params);
-        const response = await fetch(url, {
-          headers: { Accept: 'application/json' }
-        });
-
-        if (!response.ok) {
-          throw new Error(`API Error ${response.status}`);
-        }
-
+        const response = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!response.ok) throw new Error(`API Error ${response.status}`);
         return response.json();
       }
 
@@ -680,6 +752,11 @@
           if (value !== undefined && value !== null && value !== '') return value;
         }
         return undefined;
+      }
+
+      function toNumber(value, fallback = 0) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : fallback;
       }
 
       function extractArray(payload) {
@@ -703,7 +780,8 @@
           payload.list,
           payload.entries,
           payload.catalog,
-          payload.media
+          payload.media,
+          payload.home
         ];
 
         for (const candidate of candidates) {
@@ -721,18 +799,16 @@
 
       function normalizeItem(raw) {
         if (!raw || typeof raw !== 'object') return null;
-
         const title = deepGetFirst(raw, ['title', 'name', 'original_title', 'original_name', 'slug']) || 'Sans titre';
         const description = deepGetFirst(raw, ['description', 'overview', 'synopsis', 'story', 'summary']) || 'Aucune description disponible.';
         const poster = deepGetFirst(raw, ['poster', 'poster_url', 'image', 'cover', 'thumbnail', 'posterUrl', 'backdrop', 'image_url', 'cover_url']) || '';
-        const year = deepGetFirst(raw, ['year', 'release_year', 'released_at', 'date', 'published_at']) || '';
+        const year = deepGetFirst(raw, ['year', 'release_year', 'released_at', 'date', 'published_at']) || '2026';
         const id = deepGetFirst(raw, ['id', '_id', 'movie_id', 'series_id', 'slug']) || title;
-        const type = deepGetFirst(raw, ['type', 'category', 'media_type']) || 'movie';
-        const lang = String(deepGetFirst(raw, ['language', 'lang', 'audio_language', 'audio', 'subtitle']) || 'VF').toUpperCase();
+        const type = String(deepGetFirst(raw, ['type', 'category', 'media_type']) || 'movie').toLowerCase();
+        const language = String(deepGetFirst(raw, ['language', 'lang', 'audio_language', 'audio', 'subtitle']) || 'VF').toUpperCase();
         const quality = deepGetFirst(raw, ['quality', 'resolution', 'format']) || 'HD';
         const rating = deepGetFirst(raw, ['rating', 'score', 'vote_average']) || '8.8';
         const genres = Array.isArray(raw.genres) ? raw.genres : (typeof raw.genre === 'string' ? [raw.genre] : []);
-        const tags = Array.isArray(raw.tags) ? raw.tags : [];
 
         return {
           id,
@@ -741,11 +817,10 @@
           poster,
           year,
           type,
-          language: lang,
+          language,
           quality,
           rating,
           genres,
-          tags,
           original: raw,
           servers: Array.isArray(raw.servers) ? raw.servers : []
         };
@@ -760,6 +835,10 @@
         if (normalized.includes('VOST')) return 'VOSTFR';
         if (normalized.includes('VO')) return 'VO';
         return normalized || 'VF';
+      }
+
+      function pickTypeLabel(type) {
+        return type === 'series' || type === 'serie' ? t('seriesType') : t('movie');
       }
 
       function readDirectSource(value) {
@@ -805,6 +884,19 @@
         return null;
       }
 
+      function collectServerList(item) {
+        const rawServers = Array.isArray(item.original?.servers) ? item.original.servers : [];
+        if (rawServers.length) {
+          return rawServers.map((server, index) => ({
+            name: server.name || `${t('server')} ${index + 1}`,
+            url: server.url || server.src || server.link || '',
+            type: server.type || 'video'
+          }));
+        }
+
+        return [...defaultServers];
+      }
+
       async function loadFromApiCandidates(type, id) {
         const endpointCandidates = [
           `/stream/${encodeURIComponent(id)}`,
@@ -821,48 +913,30 @@
             const source = readDirectSource(payload);
             if (source) return source;
 
-            const nested = extractArray(payload);
-            for (const item of nested) {
-              const direct = readDirectSource(item);
+            for (const nested of extractArray(payload)) {
+              const direct = readDirectSource(nested);
               if (direct) return direct;
             }
           } catch (error) {
-            // continuer vers l'endpoint suivant
+            // retry with next endpoint
           }
         }
 
         return null;
       }
 
-      function makeServerList(item) {
-        const rawServers = Array.isArray(item.original?.servers) ? item.original.servers : [];
-        if (rawServers.length) {
-          return rawServers.map((server, index) => ({
-            name: server.name || `Serveur ${index + 1}`,
-            url: server.url || server.src || server.link || '',
-            type: server.type || 'video'
-          }));
-        }
-
-        return [
-          { name: 'Serveur 1', url: '', type: 'video' },
-          { name: 'Serveur 2', url: '', type: 'video' },
-          { name: 'Serveur 3', url: '', type: 'iframe' }
-        ];
-      }
-
       async function resolvePlayerSource(item, serverIndex = 0) {
-        const serverList = makeServerList(item);
-        const chosenServer = serverList[serverIndex] || serverList[0] || {};
+        const serverList = collectServerList(item);
+        const chosen = serverList[serverIndex] || serverList[0] || {};
 
-        if (chosenServer.url) {
-          return { url: normalizeUrl(chosenServer.url), type: chosenServer.type || 'video' };
+        if (chosen.url) {
+          return { url: normalizeUrl(chosen.url), type: chosen.type || 'video' };
         }
 
         const directFromItem = readDirectSource(item.original);
         if (directFromItem) return directFromItem;
 
-        const directFromFields = [
+        const directCandidates = [
           item.original?.stream_url,
           item.original?.video_url,
           item.original?.embed_url,
@@ -872,10 +946,12 @@
           item.original?.sources,
           item.original?.data,
           item.original?.items,
-          item.original?.result
+          item.original?.result,
+          item.original?.movies,
+          item.original?.episodes
         ];
 
-        for (const candidate of directFromFields) {
+        for (const candidate of directCandidates) {
           const found = readDirectSource(candidate);
           if (found) return found;
         }
@@ -886,47 +962,13 @@
         return { url: '', type: 'video' };
       }
 
-      function populateHero(item) {
-        heroTitle.textContent = item.title;
-        heroDescription.textContent = item.description;
-        heroPoster.src = getPoster(item);
-        featuredYear.textContent = item.year || '2026';
-        featuredRating.textContent = item.rating || '8.9';
-        featuredLang.textContent = getLanguageBadge(item.language);
-        featuredType.textContent = item.type === 'series' ? 'Série' : 'Film';
-        document.getElementById('playFeaturedBtn').onclick = () => openPlayer(item);
-      }
-
-      function populateGenres(options = []) {
-        const current = new Set([ 'Tout', ...options ]);
-        const list = [...current].filter(Boolean);
-        genreFilter.innerHTML = '<option value="Tout">Tous les genres</option>' + list.map((genre) => {
-          if (genre === 'Tout') return '';
-          return `<option value="${genre}">${genre}</option>`;
-        }).join('');
-
-        genreFilter.value = state.activeTypeFilter || 'Tout';
-      }
-
-      function applyFilters() {
-        const term = state.search.trim().toLowerCase();
-        state.filtered = state.items.filter((item) => {
-          const matchSearch = !term || item.title.toLowerCase().includes(term) || (item.description || '').toLowerCase().includes(term);
-          const matchGenre = state.activeTypeFilter === 'Tout' || (item.genres || []).includes(state.activeTypeFilter);
-          const matchLang = state.activeLanguageFilter === 'Tous' || getLanguageBadge(item.language) === state.activeLanguageFilter;
-          return matchSearch && matchGenre && matchLang;
-        });
-
-        renderCatalog();
-      }
-
       function renderCatalog() {
         if (!state.filtered.length) {
-          catalogGrid.innerHTML = '<div class="empty-state">Aucun résultat trouvé.</div>';
+          catalogGrid.innerHTML = '<div class="empty-state">' + t('noResults') + '</div>';
           return;
         }
 
-        const cards = state.filtered.map((item) => `
+        const html = state.filtered.map((item) => `
           <article class="movie-card" data-id="${String(item.id)}" tabindex="0" role="button">
             <img src="${getPoster(item)}" alt="${item.title}" />
             <div class="top-badge">${item.quality || 'HD'}</div>
@@ -940,7 +982,7 @@
           </article>
         `).join('');
 
-        catalogGrid.innerHTML = cards;
+        catalogGrid.innerHTML = html;
 
         catalogGrid.querySelectorAll('.movie-card').forEach((card) => {
           card.addEventListener('click', () => {
@@ -950,7 +992,40 @@
         });
       }
 
-      function setVisiblePlayer(visible) {
+      function populateHero(item) {
+        heroLabel.textContent = t('trailer');
+        featuredTitle.textContent = item.title;
+        featuredDescription.textContent = item.description;
+        featuredPoster.src = getPoster(item);
+        featuredYear.textContent = item.year || '2026';
+        featuredRating.textContent = item.rating || '8.9';
+        featuredLang.textContent = getLanguageBadge(item.language);
+        featuredType.textContent = pickTypeLabel(item.type);
+        document.getElementById('playFeaturedBtn').onclick = () => openPlayer(item);
+      }
+
+      function populateGenres(options = []) {
+        const unique = [...new Set(['Tout', ...options].filter(Boolean))];
+        genreFilter.innerHTML = unique.map((genre) => {
+          if (genre === 'Tout') return '<option value="Tout">' + t('allGenres') + '</option>';
+          return `<option value="${genre}">${genre}</option>`;
+        }).join('');
+        genreFilter.value = state.activeGenre || 'Tout';
+      }
+
+      function applyFilters() {
+        const term = state.search.trim().toLowerCase();
+        state.filtered = state.items.filter((item) => {
+          const matchesSearch = !term || item.title.toLowerCase().includes(term) || (item.description || '').toLowerCase().includes(term);
+          const matchesGenre = state.activeGenre === 'Tout' || (item.genres || []).includes(state.activeGenre);
+          const matchesLanguage = state.activeLanguage === 'Tous' || getLanguageBadge(item.language) === state.activeLanguage;
+          return matchesSearch && matchesGenre && matchesLanguage;
+        });
+
+        renderCatalog();
+      }
+
+      function setPlayerVisible(visible) {
         playerPanel.classList.toggle('visible', visible);
         if (!visible) {
           videoPlayer.pause();
@@ -964,7 +1039,7 @@
       function renderInfoTags(item) {
         const tags = [
           item.year || '2026',
-          item.type === 'series' ? 'Série' : 'Film',
+          pickTypeLabel(item.type),
           getLanguageBadge(item.language),
           item.quality || 'HD',
           ...(item.genres || []).slice(0, 3)
@@ -981,18 +1056,43 @@
         videoPlayer.classList.remove('hidden');
       }
 
+      async function playWithServer(item, serverIndex) {
+        const result = await resolvePlayerSource(item, serverIndex);
+        if (!result || !result.url) {
+          infoDescription.textContent = t('noSource');
+          return;
+        }
+
+        const url = normalizeUrl(result.url);
+        const isEmbed = /youtube|vimeo|embed|iframe|player|watch\?/i.test(url) || result.type === 'iframe';
+
+        if (isEmbed) {
+          videoPlayer.classList.add('hidden');
+          embedPlayer.classList.remove('hidden');
+          embedPlayer.src = url;
+          return;
+        }
+
+        videoPlayer.classList.remove('hidden');
+        embedPlayer.classList.add('hidden');
+        embedPlayer.src = '';
+        videoPlayer.src = url;
+        videoPlayer.load();
+      }
+
       async function openPlayer(item) {
         state.selected = item;
         infoTitle.textContent = item.title;
         infoDescription.textContent = item.description;
         renderInfoTags(item);
-        setVisiblePlayer(true);
-
+        setPlayerVisible(true);
         clearPlayer();
 
-        const serverList = makeServerList(item);
+        const serverList = collectServerList(item);
         serverTabs.innerHTML = serverList.map((server, index) => `
-          <button class="server-btn ${index === state.activeServerIndex ? 'active' : ''}" data-index="${index}">${server.name}</button>
+          <button class="server-btn ${index === state.activeServerIndex ? 'active' : ''}" data-index="${index}" type="button">
+            ${server.name}
+          </button>
         `).join('');
 
         serverTabs.querySelectorAll('.server-btn').forEach((button) => {
@@ -1008,36 +1108,12 @@
         await playWithServer(item, state.activeServerIndex);
       }
 
-      async function playWithServer(item, serverIndex) {
-        const resolved = await resolvePlayerSource(item, serverIndex);
-        if (!resolved || !resolved.url) {
-          infoDescription.textContent = 'Aucune source de lecture disponible pour ce titre pour le moment. Réessayez plus tard.';
-          return;
-        }
-
-        const videoUrl = normalizeUrl(resolved.url);
-        const isEmbedUrl = /youtube|vimeo|embed|iframe|player|watch\?/i.test(videoUrl) || resolved.type === 'iframe';
-
-        if (isEmbedUrl) {
-          videoPlayer.classList.add('hidden');
-          embedPlayer.classList.remove('hidden');
-          embedPlayer.src = videoUrl;
-          return;
-        }
-
-        videoPlayer.classList.remove('hidden');
-        embedPlayer.classList.add('hidden');
-        embedPlayer.src = '';
-        videoPlayer.src = videoUrl;
-        videoPlayer.load();
-      }
-
-      function extractListFromHome(payload) {
-        const primaryList = extractArray(payload);
-        if (primaryList.length) return primaryList.map(normalizeItem).filter(Boolean);
+      function extractHomeList(payload) {
+        const first = extractArray(payload);
+        if (first.length) return first.map(normalizeItem).filter(Boolean);
 
         if (payload && typeof payload === 'object') {
-          const nested = Object.keys(payload).map((key) => payload[key]).find((value) => Array.isArray(value));
+          const nested = Object.values(payload).find((value) => Array.isArray(value));
           if (nested) return nested.map(normalizeItem).filter(Boolean);
         }
 
@@ -1047,23 +1123,21 @@
       async function loadContent() {
         try {
           const payload = await apiFetch('/home');
-          const list = extractListFromHome(payload);
-          state.items = list.filter(Boolean);
+          const items = extractHomeList(payload);
+          state.items = items.filter(Boolean);
 
           if (!state.items.length) {
-            catalogGrid.innerHTML = '<div class="empty-state">Aucune donnée reçue depuis l’API.</div>';
+            catalogGrid.innerHTML = '<div class="empty-state">' + t('noApi') + '</div>';
             return;
           }
 
-          const genres = [...new Set(state.items.flatMap((item) => item.genres || []).filter(Boolean))];
-          populateGenres(genres);
+          const allGenres = [...new Set(state.items.flatMap((item) => item.genres || []).filter(Boolean))];
+          populateGenres(allGenres);
           state.filtered = [...state.items];
-
-          const featured = state.items[0];
-          populateHero(featured);
+          populateHero(state.items[0]);
           renderCatalog();
         } catch (error) {
-          catalogGrid.innerHTML = '<div class="empty-state">Impossible de récupérer le catalogue. Vérifiez l’API.</div>';
+          catalogGrid.innerHTML = '<div class="empty-state">' + t('noApi') + '</div>';
           console.error(error);
         }
       }
@@ -1074,22 +1148,28 @@
       });
 
       genreFilter.addEventListener('change', (event) => {
-        state.activeTypeFilter = event.target.value;
+        state.activeGenre = event.target.value;
         applyFilters();
       });
 
       languageFilter.addEventListener('change', (event) => {
-        state.activeLanguageFilter = event.target.value;
+        state.activeLanguage = event.target.value;
         applyFilters();
       });
 
-      document.getElementById('closePlayerBtn').addEventListener('click', () => setVisiblePlayer(false));
+      document.getElementById('closePlayerBtn').addEventListener('click', () => setPlayerVisible(false));
+      document.getElementById('langToggle').addEventListener('click', () => {
+        state.locale = state.locale === 'fr' ? 'en' : 'fr';
+        applyTranslations();
+      });
+
       document.getElementById('addFeaturedBtn').addEventListener('click', () => {
         const featured = state.items[0];
         if (featured) openPlayer(featured);
       });
 
       window.addEventListener('DOMContentLoaded', () => {
+        applyTranslations();
         loadContent();
       });
     </script>
