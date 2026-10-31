@@ -115,6 +115,7 @@ main{padding-bottom:70px}
 .srv .btn{padding:8px 12px;font-size:13px;white-space:nowrap}
 .srv .btn.on{background:var(--blue);color:#fff}
 .notice .tab{margin-left:10px}
+.diag{margin-top:12px;padding:10px;background:var(--ink);border:1px solid var(--line);border-radius:8px;font:12px/1.5 ui-monospace,Menlo,monospace;color:var(--ice);white-space:pre-wrap;word-break:break-all;max-height:320px;overflow:auto}
 .msg{color:var(--muted);padding:30px;line-height:1.6}
 footer{padding:30px 4vw;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
 
@@ -371,7 +372,7 @@ function notice(){
   if(!okCount && !staleCount) msg = "Impossible de joindre les serveurs pour le moment.";
   else if(staleCount) msg = "Certains serveurs ne répondent pas : la dernière version enregistrée est affichée.";
   if(!msg) return '';
-  return `<div class="notice">${msg} <button class="tab on" id="retry">Réessayer</button></div>`;
+  return `<div class="notice">${msg} <button class="tab on" id="retry">Réessayer</button><button class="tab" id="diag">Diagnostic</button><pre class="diag hidden" id="diagout"></pre></div>`;
 }
 function renderHome(){
   const pool = CONFIG.CATS.flatMap(c => DB[c.key] || []).filter(x => x.backdrop && !x.demo);
@@ -472,10 +473,35 @@ function play(it, ch){
   $('#pback').onclick = closePlayer;
 }
 
+/* ---------- Diagnostic ---------- */
+async function runDiag(){
+  const out = $('#diagout'); out.classList.remove('hidden'); out.textContent = 'Test en cours…';
+  const lines = [];
+  const show = () => { out.textContent = lines.join('\n'); };
+  lines.push(`Page : ${location.protocol}//${location.host} — mode ${USE_PROXY ? 'proxy' : 'direct'}`);
+  if(USE_PROXY){
+    try{ const r = await fetch(CONFIG.PROXY); lines.push(`PROXY ${r.status} ${(await r.text()).replace(/\s+/g,' ').slice(0,110)}`); }
+    catch(e){ lines.push('PROXY injoignable : ' + e.message); }
+    show();
+  }
+  const probes = [...new Set(['/', ...CONFIG.CATS.flatMap(c => c.paths.slice(0,2).map(p => '/' + p)), '/api', '/docs'])];
+  for(const p of probes){
+    try{
+      const r = await fetch(USE_PROXY ? proxyPath(p) : CONFIG.SERVERS[0] + p);
+      const t = (await r.text()).replace(/\s+/g,' ').slice(0,110);
+      lines.push(`${p} → ${r.status} ${t}`);
+    }catch(e){ lines.push(`${p} → erreur ${e.message}`); }
+    show();
+  }
+  lines.push('Fin du test.');
+  show();
+}
+
 /* ---------- Événements ---------- */
 document.addEventListener('click', e => {
   const t = e.target;
   if(t.closest('#retry')) return boot();
+  if(t.closest('#diag')) return runDiag();
   const tab = t.closest('.tab'); if(tab) return go(tab.dataset.k);
   if(t.closest('#home')) return go('home');
   if(t.closest('.close') || t === $('#modal')) return closeModal();
