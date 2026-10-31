@@ -7,20 +7,19 @@
     <title>PRINCE MOVIE | Streaming premium</title>
     <style>
       :root {
-        --bg: #080d17;
-        --bg-soft: #111827;
-        --panel: rgba(11, 17, 26, 0.9);
-        --card: rgba(18, 25, 39, 0.92);
-        --card-2: rgba(17, 24, 39, 0.9);
+        --bg: #070b14;
+        --bg-2: #0d1421;
+        --panel: rgba(12, 18, 28, 0.9);
+        --card: rgba(17, 25, 38, 0.9);
         --line: rgba(148, 163, 184, 0.18);
         --text: #edf3ff;
-        --muted: #a7b0c0;
+        --muted: #a8b2c8;
         --red: #ff3b57;
         --red-2: #ff7a59;
-        --gold: #f4c96d;
-        --green: #4ade80;
         --blue: #5aa9ff;
-        --shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+        --green: #4ade80;
+        --gold: #f4c96d;
+        --shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
       }
 
       * { box-sizing: border-box; }
@@ -28,12 +27,12 @@
       body {
         margin: 0;
         min-height: 100vh;
-        background:
-          radial-gradient(circle at 15% 0%, rgba(255, 59, 87, 0.18), transparent 22%),
-          radial-gradient(circle at 80% 10%, rgba(90, 169, 255, 0.12), transparent 18%),
-          linear-gradient(180deg, #050b13 0%, #0c1320 100%);
-        color: var(--text);
         font-family: Arial, Helvetica, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 15% 0%, rgba(255, 59, 87, 0.18), transparent 20%),
+          radial-gradient(circle at 80% 10%, rgba(90, 169, 255, 0.12), transparent 18%),
+          linear-gradient(180deg, #050912 0%, #0a1320 100%);
       }
 
       a { color: inherit; text-decoration: none; }
@@ -123,20 +122,12 @@
       }
       .search-box input::placeholder { color: var(--muted); }
 
-      .lang-toggle,
-      .ghost-btn,
-      .primary-btn,
-      .secondary-btn,
-      .server-btn,
-      .close-btn,
-      .detail-action,
-      .mini-favorite {
+      .lang-toggle, .ghost-btn, .primary-btn, .secondary-btn, .server-btn, .close-btn, .detail-action, .mini-favorite {
         border: none;
         cursor: pointer;
       }
 
-      .lang-toggle,
-      .ghost-btn {
+      .lang-toggle, .ghost-btn {
         padding: 10px 14px;
         border-radius: 12px;
         border: 1px solid var(--line);
@@ -154,14 +145,12 @@
         border: 1px solid var(--line);
         border-radius: 28px;
         background:
-          linear-gradient(90deg, rgba(8, 13, 23, 0.9), rgba(8, 13, 23, 0.44)),
+          linear-gradient(90deg, rgba(8, 13, 23, 0.9), rgba(8, 13, 23, 0.46)),
           url('https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=1600&q=80') center/cover no-repeat;
         box-shadow: var(--shadow);
       }
 
-      .hero-copy {
-        max-width: 620px;
-      }
+      .hero-copy { max-width: 620px; }
       .eyebrow {
         display: inline-block;
         padding: 8px 12px;
@@ -210,7 +199,9 @@
         border: 1px solid var(--line);
         color: var(--text);
       }
-      .primary-btn:hover, .secondary-btn:hover, .ghost-btn:hover, .lang-toggle:hover, .detail-action:hover, .mini-favorite:hover { transform: translateY(-1px); }
+      .primary-btn:hover, .secondary-btn:hover, .ghost-btn:hover, .lang-toggle:hover, .detail-action:hover, .mini-favorite:hover {
+        transform: translateY(-1px);
+      }
 
       .hero-meta {
         display: flex;
@@ -228,10 +219,7 @@
         font-size: 0.82rem;
       }
 
-      .hero-poster {
-        display: flex;
-        justify-content: center;
-      }
+      .hero-poster { display: flex; justify-content: center; }
       .hero-poster-card {
         position: relative;
         width: min(100%, 340px);
@@ -249,7 +237,7 @@
         content: "";
         position: absolute;
         inset: 0;
-        background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.16) 50%, rgba(0,0,0,0.76) 100%);
+        background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.75) 100%);
       }
 
       .toolbar {
@@ -276,7 +264,13 @@
         outline: none;
       }
 
-      .section-block { margin-top: 30px; }
+      .catalog-root {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+      }
+
+      .section-block { margin-top: 10px; }
       .section-head {
         display: flex;
         align-items: center;
@@ -374,13 +368,6 @@
         border: 1px solid rgba(255,255,255,0.08);
       }
 
-      .favorite-row {
-        margin-top: 30px;
-      }
-      .favorite-row .catalog-grid {
-        margin-top: 8px;
-      }
-
       .mini-favorite {
         position: absolute;
         top: 12px;
@@ -440,8 +427,8 @@
       }
       .player-box video, .player-box iframe {
         width: 100%;
-        height: 100%;
         min-height: 420px;
+        height: 100%;
         background: #000;
         border: none;
       }
@@ -705,13 +692,7 @@
           </div>
         </div>
 
-        <section class="section-block">
-          <div class="section-head">
-            <h2 id="catalogTitle">Catalogue</h2>
-            <a href="#" id="catalogViewAll">Voir tout</a>
-          </div>
-          <div id="catalogGrid" class="catalog-grid"></div>
-        </section>
+        <div id="catalogRoot" class="catalog-root"></div>
 
         <section class="section-block favorite-row">
           <div class="section-head">
@@ -771,11 +752,11 @@
     <script>
       const API_BASE = 'http://51.75.118.170:20041/api/v1';
       const defaultServers = [
-        { name: 'Serveur 1', url: '' },
-        { name: 'Serveur 2', url: '' },
-        { name: 'Serveur 3', url: '' },
-        { name: 'Serveur 4', url: '' },
-        { name: 'Serveur 5', url: '' }
+        { name: 'Serveur 1', url: '', type: 'video' },
+        { name: 'Serveur 2', url: '', type: 'video' },
+        { name: 'Serveur 3', url: '', type: 'video' },
+        { name: 'Serveur 4', url: '', type: 'video' },
+        { name: 'Serveur 5', url: '', type: 'video' }
       ];
 
       const translations = {
@@ -801,7 +782,16 @@
           server: 'Serveur',
           movie: 'Film',
           seriesType: 'Série',
-          quality: 'HD'
+          quality: 'HD',
+          sectionMovie: 'Films',
+          sectionSeries: 'Séries',
+          sectionAnime: 'Anime',
+          sectionKDrama: 'K-Drama',
+          sectionLive: 'Live',
+          sectionManga: 'Manga',
+          sectionManhwa: 'Manhwa',
+          sectionHentai: 'Hentai',
+          sectionLatest: 'Nouveautés'
         },
         en: {
           home: 'Home',
@@ -825,7 +815,16 @@
           server: 'Server',
           movie: 'Movie',
           seriesType: 'Series',
-          quality: 'HD'
+          quality: 'HD',
+          sectionMovie: 'Movies',
+          sectionSeries: 'Series',
+          sectionAnime: 'Anime',
+          sectionKDrama: 'K-Drama',
+          sectionLive: 'Live',
+          sectionManga: 'Manga',
+          sectionManhwa: 'Manhwa',
+          sectionHentai: 'Hentai',
+          sectionLatest: 'Latest'
         }
       };
 
@@ -841,7 +840,31 @@
         search: ''
       };
 
-      const catalogGrid = document.getElementById('catalogGrid');
+      const sectionOrder = [
+        'latest',
+        'movie',
+        'series',
+        'anime',
+        'k-drama',
+        'live',
+        'manga',
+        'manhwa',
+        'hentai'
+      ];
+
+      const sectionTitles = {
+        latest: 'sectionLatest',
+        movie: 'sectionMovie',
+        series: 'sectionSeries',
+        anime: 'sectionAnime',
+        'k-drama': 'sectionKDrama',
+        live: 'sectionLive',
+        manga: 'sectionManga',
+        manhwa: 'sectionManhwa',
+        hentai: 'sectionHentai'
+      };
+
+      const catalogRoot = document.getElementById('catalogRoot');
       const favoritesGrid = document.getElementById('favoritesGrid');
       const heroLabel = document.getElementById('heroLabel');
       const featuredTitle = document.getElementById('featuredTitle');
@@ -854,8 +877,6 @@
       const genreFilter = document.getElementById('genreFilter');
       const languageFilter = document.getElementById('languageFilter');
       const searchInput = document.getElementById('searchInput');
-      const catalogTitle = document.getElementById('catalogTitle');
-      const catalogViewAll = document.getElementById('catalogViewAll');
       const favoritesTitle = document.getElementById('favoritesTitle');
       const favoritesViewAll = document.getElementById('favoritesViewAll');
       const langToggle = document.getElementById('langToggle');
@@ -892,10 +913,7 @@
         heroLabel.textContent = t('trailer');
         featuredTitle.textContent = t('loading');
         featuredDescription.textContent = t('loading');
-        catalogTitle.textContent = t('catalog');
-        favoritesTitle.textContent = t('myList');
-        catalogViewAll.textContent = t('viewAll');
-        favoritesViewAll.textContent = t('viewAll');
+        favsTitle();
         playerTitle.textContent = t('player');
         document.getElementById('playFeaturedBtn').textContent = '▶ ' + t('watch');
         document.getElementById('addFeaturedBtn').textContent = '＋ ' + t('myList');
@@ -903,6 +921,13 @@
         langToggle.textContent = state.locale.toUpperCase();
         genreFilter.options[0].text = t('allGenres');
         languageFilter.options[0].text = t('allLanguages');
+        favoritesViewAll.textContent = t('viewAll');
+        renderCatalog();
+      }
+
+      function favsTitle() {
+        const favoritesTitleEl = document.getElementById('favoritesTitle');
+        if (favoritesTitleEl) favoritesTitleEl.textContent = t('myList');
       }
 
       function normalizeUrl(url) {
@@ -917,10 +942,6 @@
         }
         if (clean.startsWith('//')) return 'https:' + clean;
         return clean;
-      }
-
-      function toSafeSource(url) {
-        return normalizeUrl(url);
       }
 
       function buildApiUrl(path, params = {}) {
@@ -950,33 +971,17 @@
 
       function extractArray(payload) {
         if (!payload) return [];
-        const candidates = [
-          payload,
-          payload.data,
-          payload.result,
-          payload.response,
-          payload.items,
-          payload.movies,
-          payload.results,
-          payload.series,
-          payload.data?.data,
-          payload.data?.items,
-          payload.data?.movies,
-          payload.data?.results,
-          payload.items?.data,
-          payload.data?.series,
-          payload.content,
-          payload.list,
-          payload.entries,
-          payload.catalog,
-          payload.media,
-          payload.home
+
+        const candidateKeys = [
+          'items', 'results', 'movies', 'series', 'anime', 'data', 'entries', 'content', 'list', 'catalog', 'media',
+          'films', 'kdrama', 'k-drama', 'live', 'manga', 'manhwa', 'hentai', 'shows', 'episodes', 'videos', 'streams'
         ];
 
-        for (const candidate of candidates) {
-          if (Array.isArray(candidate)) return candidate;
+        for (const key of candidateKeys) {
+          if (Array.isArray(payload[key])) return payload[key];
         }
 
+        if (Array.isArray(payload)) return payload;
         if (payload && typeof payload === 'object') {
           for (const value of Object.values(payload)) {
             if (Array.isArray(value)) return value;
@@ -986,264 +991,259 @@
         return [];
       }
 
+      function toNumber(value, fallback = 0) {
+        const num = Number(value);
+        return Number.isFinite(num) ? num : fallback;
+      }
+
       function normalizeItem(raw) {
         if (!raw || typeof raw !== 'object') return null;
-        const title = deepGetFirst(raw, ['title', 'name', 'original_title', 'original_name', 'slug']) || 'Sans titre';
-        const description = deepGetFirst(raw, ['description', 'overview', 'synopsis', 'story', 'summary']) || 'Aucune description disponible.';
-        const poster = deepGetFirst(raw, ['poster', 'poster_url', 'image', 'cover', 'thumbnail', 'posterUrl', 'backdrop', 'image_url', 'cover_url']) || '';
-        const year = deepGetFirst(raw, ['year', 'release_year', 'released_at', 'date', 'published_at']) || '2026';
-        const id = deepGetFirst(raw, ['id', '_id', 'movie_id', 'series_id', 'slug']) || title;
-        const type = String(deepGetFirst(raw, ['type', 'category', 'media_type']) || 'movie').toLowerCase();
+
+        const title = deepGetFirst(raw, ['title', 'name', 'original_title', 'original_name', 'slug', 'movie_name']) || 'Sans titre';
+        const description = deepGetFirst(raw, ['description', 'overview', 'synopsis', 'story', 'summary', 'plot']) || 'Aucune description disponible.';
+        const poster = deepGetFirst(raw, ['poster', 'poster_url', 'image', 'cover', 'thumbnail', 'posterUrl', 'backdrop', 'cover_url', 'image_url']) || '';
+        const year = deepGetFirst(raw, ['year', 'release_year', 'released_at', 'date', 'published_at', 'season_year']) || '2026';
+        const id = deepGetFirst(raw, ['id', '_id', 'movie_id', 'series_id', 'slug', 'uuid']) || String(title);
+        const type = String(deepGetFirst(raw, ['type', 'category', 'media_type', 'kind']) || 'movie').toLowerCase();
         const language = String(deepGetFirst(raw, ['language', 'lang', 'audio_language', 'audio', 'subtitle']) || 'VF').toUpperCase();
         const quality = deepGetFirst(raw, ['quality', 'resolution', 'format']) || 'HD';
-        const rating = deepGetFirst(raw, ['rating', 'score', 'vote_average']) || '8.8';
-        const genres = Array.isArray(raw.genres) ? raw.genres : (typeof raw.genre === 'string' ? [raw.genre] : []);
+        const rating = deepGetFirst(raw, ['rating', 'score', 'vote_average', 'imdb']) || '8.8';
+        const genres = Array.isArray(raw.genres) ? raw.genres : (Array.isArray(raw.genre) ? raw.genre : (typeof raw.genre === 'string' ? [raw.genre] : []));
+        const original = raw.original || raw;
 
-        return {
-          id,
+        let normalizedType = type;
+        if (type.includes('series') || type.includes('serie') || type.includes('tv')) normalizedType = 'series';
+        else if (type.includes('anime')) normalizedType = 'anime';
+        else if (type.includes('k-drama') || type.includes('kdrama') || type.includes('drama')) normalizedType = 'k-drama';
+        else if (type.includes('live') || type.includes('sport')) normalizedType = 'live';
+        else if (type.includes('manga')) normalizedType = 'manga';
+        else if (type.includes('manhwa')) normalizedType = 'manhwa';
+        else if (type.includes('hentai')) normalizedType = 'hentai';
+        else if (type.includes('movie') || type.includes('film')) normalizedType = 'movie';
+
+        const item = {
+          id: String(id),
           title,
           description,
           poster,
-          year,
-          type,
+          year: String(year),
+          type: normalizedType,
           language,
           quality,
-          rating,
+          rating: String(rating),
           genres,
-          original: raw,
-          servers: Array.isArray(raw.servers) ? raw.servers : []
+          original,
+          createdAt: raw.created_at || raw.updated_at || ''
         };
+
+        return item;
       }
 
       function getPoster(item) {
-        return normalizeUrl(item.poster || 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=900&q=80');
+        if (!item) return 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=900&q=80';
+        if (item.poster) return normalizeUrl(item.poster) || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=900&q=80';
+        return 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=900&q=80';
       }
 
-      function getLanguageBadge(language) {
-        const normalized = String(language || 'VF').toUpperCase();
-        if (normalized.includes('VOST')) return 'VOSTFR';
-        if (normalized.includes('VO')) return 'VO';
-        return normalized || 'VF';
+      function getLanguageBadge(language = 'VF') {
+        const value = String(language).toUpperCase();
+        if (value.includes('VOSTFR')) return 'VOSTFR';
+        if (value.includes('VO')) return 'VO';
+        if (value.includes('VF')) return 'VF';
+        return value || 'VF';
       }
 
       function pickTypeLabel(type) {
-        return type === 'series' || type === 'serie' ? t('seriesType') : t('movie');
+        const map = {
+          movie: t('movie'),
+          series: t('seriesType'),
+          anime: 'Anime',
+          'k-drama': 'K-Drama',
+          live: 'Live',
+          manga: 'Manga',
+          manhwa: 'Manhwa',
+          hentai: 'Hentai',
+          latest: 'Latest'
+        };
+        return map[type] || t('movie');
       }
 
-      function readDirectSource(value) {
-        if (!value) return null;
-
-        if (typeof value === 'string') {
-          const s = value.trim();
-          if (!s) return null;
-          if (/^https?:\/\//i.test(s) || /^\/\//.test(s) || s.startsWith('blob:') || s.startsWith('data:')) {
-            return { url: toSafeSource(s), type: /\.m3u8($|\?|#)/i.test(s) ? 'video' : 'iframe' };
-          }
-          return null;
-        }
-
-        if (Array.isArray(value)) {
-          for (const entry of value) {
-            const found = readDirectSource(entry);
-            if (found) return found;
-          }
-          return null;
-        }
-
-        if (typeof value === 'object') {
-          const candidateKeys = [
-            'url', 'src', 'source', 'href', 'stream_url', 'video_url', 'player_url', 'embed_url',
-            'file', 'file_url', 'mp4', 'hls', 'm3u8', 'link', 'download', 'playback', 'video'
-          ];
-
-          for (const key of candidateKeys) {
-            const found = readDirectSource(value[key]);
-            if (found) return found;
-          }
-
-          for (const [key, nested] of Object.entries(value)) {
-            const lower = key.toLowerCase();
-            if (lower.includes('url') || lower.includes('source') || lower.includes('stream') || lower.includes('video') || lower.includes('player') || lower.includes('embed')) {
-              const found = readDirectSource(nested);
-              if (found) return found;
-            }
-          }
-        }
-
-        return null;
+      function getSectionTitle(type) {
+        return t(sectionTitles[type] || 'sectionMovie');
       }
 
-      function collectServerList(item) {
-        const rawServers = Array.isArray(item.original?.servers) ? item.original.servers : [];
-        if (rawServers.length) {
-          return rawServers.map((server, index) => ({
-            name: server.name || `${t('server')} ${index + 1}`,
-            url: server.url || server.src || server.link || '',
-            type: server.type || 'video'
-          }));
+      function parseApiItems(payload) {
+        const list = extractArray(payload)
+          .map(normalizeItem)
+          .filter(Boolean);
+
+        if (list.length) return list;
+
+        if (payload && typeof payload === 'object') {
+          const nested = Object.values(payload).find((value) => Array.isArray(value));
+          if (nested) {
+            return nested.map(normalizeItem).filter(Boolean);
+          }
         }
 
-        return [...defaultServers];
+        return [];
       }
 
-      async function loadFromApiCandidates(type, id) {
-        const endpointCandidates = [
-          `/stream/${encodeURIComponent(id)}`,
-          `/${type}/${encodeURIComponent(id)}`,
-          `/${type}s/${encodeURIComponent(id)}`,
-          `/movies/${encodeURIComponent(id)}`,
-          `/episodes/${encodeURIComponent(id)}`,
-          `/tv/${encodeURIComponent(id)}`
-        ];
-
-        for (const endpoint of endpointCandidates) {
+      async function fetchCategoryList(category, endpoints) {
+        for (const endpoint of endpoints) {
           try {
             const payload = await apiFetch(endpoint);
-            const source = readDirectSource(payload);
-            if (source) return source;
-
-            for (const nested of extractArray(payload)) {
-              const direct = readDirectSource(nested);
-              if (direct) return direct;
-            }
+            const items = parseApiItems(payload);
+            if (items.length) return items;
           } catch (error) {
-            // retry with next endpoint
+            // next endpoint
           }
         }
 
-        return null;
+        return [];
       }
 
-      async function resolvePlayerSource(item, serverIndex = 0) {
-        const serverList = collectServerList(item);
-        const chosen = serverList[serverIndex] || serverList[0] || {};
+      async function loadCatalogData() {
+        const categories = {
+          latest: ['/home', '/latest', '/news', '/discover'],
+          movie: ['/movies', '/film', '/movie', '/films'],
+          series: ['/series', '/tv', '/shows'],
+          anime: ['/anime'],
+          'k-drama': ['/k-drama', '/kdrama'],
+          live: ['/live', '/sport', '/sports'],
+          manga: ['/manga'],
+          manhwa: ['/manhwa'],
+          hentai: ['/hentai']
+        };
 
-        if (chosen.url) {
-          return { url: normalizeUrl(chosen.url), type: chosen.type || 'video' };
+        const results = {};
+
+        for (const key of Object.keys(categories)) {
+          const items = await fetchCategoryList(key, categories[key]);
+          results[key] = items;
         }
 
-        const directFromItem = readDirectSource(item.original);
-        if (directFromItem) return directFromItem;
-
-        const directCandidates = [
-          item.original?.stream_url,
-          item.original?.video_url,
-          item.original?.embed_url,
-          item.original?.player_url,
-          item.original?.src,
-          item.original?.source,
-          item.original?.sources,
-          item.original?.data,
-          item.original?.items,
-          item.original?.result,
-          item.original?.movies,
-          item.original?.episodes
-        ];
-
-        for (const candidate of directCandidates) {
-          const found = readDirectSource(candidate);
-          if (found) return found;
+        const combined = [];
+        for (const key of Object.keys(results)) {
+          combined.push(...results[key]);
         }
 
-        const fallback = await loadFromApiCandidates(item.type, String(item.id));
-        if (fallback) return fallback;
+        const unique = [];
+        const seen = new Set();
+        for (const item of combined) {
+          const uid = `${item.type}:${item.id}`;
+          if (!seen.has(uid)) {
+            seen.add(uid);
+            unique.push(item);
+          }
+        }
 
-        return { url: '', type: 'video' };
+        state.items = unique;
+        return unique;
+      }
+
+      function renderCard(item) {
+        const active = state.favorites.some((fav) => String(fav.id) === String(item.id));
+        const type = pickTypeLabel(item.type);
+        const badge = getLanguageBadge(item.language);
+
+        return `
+          <article class="movie-card" data-id="${String(item.id)}" tabindex="0" role="button">
+            <button class="mini-favorite ${active ? 'active' : ''}" type="button" data-id="${String(item.id)}" aria-label="Ajouter à ma liste">♥</button>
+            <img src="${getPoster(item)}" alt="${item.title}" loading="lazy" />
+            <div class="card-body">
+              <span class="top-badge">${type}</span>
+              <span class="card-title">${item.title}</span>
+              <div class="card-meta">
+                <span>${item.year || '2026'}</span>
+                <span class="lang-badge ${badge.toLowerCase()}">${badge}</span>
+              </div>
+            </div>
+          </article>
+        `;
+      }
+
+      function renderSection(key, items) {
+        if (!items || !items.length) return '';
+        return `
+          <section class="section-block">
+            <div class="section-head">
+              <h2>${getSectionTitle(key)}</h2>
+              <a href="#">${t('viewAll')}</a>
+            </div>
+            <div class="catalog-grid">
+              ${items.map(renderCard).join('')}
+            </div>
+          </section>
+        `;
       }
 
       function renderCatalog() {
-        if (!state.filtered.length) {
-          catalogGrid.innerHTML = '<div class="empty-state">' + t('noResults') + '</div>';
-          return;
+        const visible = state.filtered.length ? state.filtered : state.items;
+        const grouped = {};
+
+        for (const item of visible) {
+          const key = item.type || 'movie';
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(item);
         }
 
-        const html = state.filtered.map((item) => {
-          const active = state.favorites.some((fav) => String(fav.id) === String(item.id));
-          return `
-            <article class="movie-card" data-id="${String(item.id)}" tabindex="0" role="button">
-              <button class="mini-favorite ${active ? 'active' : ''}" type="button" data-id="${String(item.id)}" aria-label="Ajouter à la liste">♥</button>
-              <img src="${getPoster(item)}" alt="${item.title}" />
-              <div class="top-badge">${item.quality || 'HD'}</div>
-              <div class="card-body">
-                <span class="card-title">${item.title}</span>
-                <div class="card-meta">
-                  <span>${item.year || '2026'}</span>
-                  <span class="lang-badge ${String(getLanguageBadge(item.language)).toLowerCase()}">${getLanguageBadge(item.language)}</span>
-                </div>
-              </div>
-            </article>
-          `;
-        }).join('');
+        const html = sectionOrder
+          .map((key) => renderSection(key, grouped[key] || []))
+          .filter(Boolean)
+          .join('');
 
-        catalogGrid.innerHTML = html;
+        catalogRoot.innerHTML = html || `<div class="empty-state">${t('noResults')}</div>`;
 
-        catalogGrid.querySelectorAll('.movie-card').forEach((card) => {
+        catalogRoot.querySelectorAll('.movie-card').forEach((card) => {
           card.addEventListener('click', (event) => {
-            const favoriteBtn = event.target.closest('.mini-favorite');
-            if (favoriteBtn) {
-              event.stopPropagation();
-              toggleFavorite(favoriteBtn.dataset.id);
-              return;
-            }
-            const item = state.items.find((entry) => String(entry.id) === card.dataset.id);
+            if (event.target.closest('.mini-favorite')) return;
+            const id = card.dataset.id;
+            const item = state.items.find((entry) => String(entry.id) === String(id));
             if (item) openDetail(item);
+          });
+        });
+
+        catalogRoot.querySelectorAll('.mini-favorite').forEach((button) => {
+          button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const id = button.dataset.id;
+            const item = state.items.find((entry) => String(entry.id) === String(id));
+            if (!item) return;
+            toggleFavorite(item);
           });
         });
       }
 
       function renderFavorites() {
         if (!state.favorites.length) {
-          favoritesGrid.innerHTML = '<div class="empty-state">Aucune sélection pour le moment.</div>';
+          favoritesGrid.innerHTML = '<div class="empty-state">' + t('noResults') + '</div>';
           return;
         }
 
-        const html = state.favorites.map((item) => `
-          <article class="movie-card" data-id="${String(item.id)}" tabindex="0" role="button">
-            <button class="mini-favorite active" type="button" data-id="${String(item.id)}" aria-label="Retirer de la liste">♥</button>
-            <img src="${getPoster(item)}" alt="${item.title}" />
-            <div class="top-badge">${item.quality || 'HD'}</div>
-            <div class="card-body">
-              <span class="card-title">${item.title}</span>
-              <div class="card-meta">
-                <span>${item.year || '2026'}</span>
-                <span class="lang-badge ${String(getLanguageBadge(item.language)).toLowerCase()}">${getLanguageBadge(item.language)}</span>
-              </div>
-            </div>
-          </article>
-        `).join('');
-
-        favoritesGrid.innerHTML = html;
+        favoritesGrid.innerHTML = state.favorites.map(renderCard).join('');
 
         favoritesGrid.querySelectorAll('.movie-card').forEach((card) => {
           card.addEventListener('click', (event) => {
-            const favoriteBtn = event.target.closest('.mini-favorite');
-            if (favoriteBtn) {
-              event.stopPropagation();
-              toggleFavorite(favoriteBtn.dataset.id);
-              return;
-            }
-            const item = state.favorites.find((entry) => String(entry.id) === card.dataset.id);
+            if (event.target.closest('.mini-favorite')) return;
+            const id = card.dataset.id;
+            const item = state.favorites.find((entry) => String(entry.id) === String(id));
             if (item) openDetail(item);
+          });
+        });
+
+        favoritesGrid.querySelectorAll('.mini-favorite').forEach((button) => {
+          button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const id = button.dataset.id;
+            const item = state.favorites.find((entry) => String(entry.id) === String(id));
+            if (item) toggleFavorite(item);
           });
         });
       }
 
-      function toggleFavorite(id) {
-        const item = state.items.find((entry) => String(entry.id) === String(id));
-        if (!item) return;
-
-        const exists = state.favorites.some((entry) => String(entry.id) === String(id));
-        if (exists) {
-          state.favorites = state.favorites.filter((entry) => String(entry.id) !== String(id));
-        } else {
-          state.favorites.push(item);
-        }
-
-        renderCatalog();
-        renderFavorites();
-      }
-
       function populateHero(item) {
+        if (!item) return;
         heroLabel.textContent = t('trailer');
         featuredTitle.textContent = item.title;
         featuredDescription.textContent = item.description;
@@ -1267,7 +1267,7 @@
       function applyFilters() {
         const term = state.search.trim().toLowerCase();
         state.filtered = state.items.filter((item) => {
-          const matchesSearch = !term || item.title.toLowerCase().includes(term) || (item.description || '').toLowerCase().includes(term);
+          const matchesSearch = !term || (item.title || '').toLowerCase().includes(term) || (item.description || '').toLowerCase().includes(term);
           const matchesGenre = state.activeGenre === 'Tout' || (item.genres || []).includes(state.activeGenre);
           const matchesLanguage = state.activeLanguage === 'Tous' || getLanguageBadge(item.language) === state.activeLanguage;
           return matchesSearch && matchesGenre && matchesLanguage;
@@ -1295,7 +1295,6 @@
           item.quality || 'HD',
           ...(item.genres || []).slice(0, 3)
         ];
-
         infoTags.innerHTML = tags.map((tag) => `<span>${tag}</span>`).join('');
       }
 
@@ -1305,6 +1304,153 @@
         embedPlayer.src = '';
         embedPlayer.classList.add('hidden');
         videoPlayer.classList.remove('hidden');
+      }
+
+      function readDirectSource(value) {
+        if (!value || typeof value !== 'object') return null;
+
+        const candidates = [
+          value.url,
+          value.src,
+          value.source,
+          value.link,
+          value.href,
+          value.file,
+          value.stream_url,
+          value.video_url,
+          value.embed_url,
+          value.player_url,
+          value.m3u8,
+          value.hls,
+          value.mp4,
+          value.url_hd,
+          value.url_720,
+          value.mpd,
+          value.playlist,
+          value.stream,
+          value.video,
+          value.embed,
+          value.frame,
+          value.data,
+          value.result,
+          value.items,
+          value.sources,
+          value.servers,
+          value.streams,
+          value.original,
+          value.episodes
+        ];
+
+        for (const item of candidates) {
+          if (typeof item === 'string' && /^https?:\/\//i.test(item.trim())) return { url: item.trim(), type: 'video' };
+          if (Array.isArray(item)) {
+            const nested = item.map(readDirectSource).find(Boolean);
+            if (nested) return nested;
+          }
+          if (item && typeof item === 'object') {
+            const nested = readDirectSource(item);
+            if (nested) return nested;
+          }
+        }
+
+        const keys = Object.keys(value);
+        for (const key of keys) {
+          const lower = key.toLowerCase();
+          if (lower.includes('url') || lower.includes('source') || lower.includes('stream') || lower.includes('video') || lower.includes('player') || lower.includes('embed')) {
+            const nested = readDirectSource(value[key]);
+            if (nested) return nested;
+          }
+        }
+
+        return null;
+      }
+
+      function collectServerList(item) {
+        const rawServers = Array.isArray(item?.original?.servers) ? item.original.servers : [];
+        if (rawServers.length) {
+          return rawServers.map((server, index) => ({
+            name: server.name || `${t('server')} ${index + 1}`,
+            url: server.url || server.src || server.link || '',
+            type: server.type || 'video'
+          }));
+        }
+
+        const sourceList = Array.isArray(item?.original?.sources) ? item.original.sources : [];
+        if (sourceList.length) {
+          return sourceList.map((server, index) => ({
+            name: server.name || `${t('server')} ${index + 1}`,
+            url: server.url || server.src || server.link || '',
+            type: server.type || 'video'
+          }));
+        }
+
+        return [...defaultServers];
+      }
+
+      async function loadFromApiCandidates(type, id) {
+        const endpointCandidates = [
+          `/stream/${encodeURIComponent(id)}`,
+          `/${type}/${encodeURIComponent(id)}`,
+          `/${type}s/${encodeURIComponent(id)}`,
+          `/movies/${encodeURIComponent(id)}`,
+          `/episodes/${encodeURIComponent(id)}`,
+          `/tv/${encodeURIComponent(id)}`,
+          `/watch/${encodeURIComponent(id)}`
+        ];
+
+        for (const endpoint of endpointCandidates) {
+          try {
+            const payload = await apiFetch(endpoint);
+            const source = readDirectSource(payload);
+            if (source) return source;
+            for (const nested of extractArray(payload)) {
+              const direct = readDirectSource(nested);
+              if (direct) return direct;
+            }
+          } catch (error) {
+            // continue to next candidate
+          }
+        }
+
+        return null;
+      }
+
+      async function resolvePlayerSource(item, serverIndex = 0) {
+        const serverList = collectServerList(item);
+        const chosen = serverList[serverIndex] || serverList[0] || {};
+
+        if (chosen.url) {
+          return { url: normalizeUrl(chosen.url), type: chosen.type || 'video' };
+        }
+
+        const directFromItem = readDirectSource(item.original);
+        if (directFromItem) return directFromItem;
+
+        const directCandidates = [
+          item.original?.stream_url,
+          item.original?.video_url,
+          item.original?.embed_url,
+          item.original?.player_url,
+          item.original?.url,
+          item.original?.src,
+          item.original?.source,
+          item.original?.data,
+          item.original?.items,
+          item.original?.result,
+          item.original?.movies,
+          item.original?.episodes,
+          item.original?.servers
+        ];
+
+        for (const candidate of directCandidates) {
+          const found = readDirectSource(candidate);
+          if (found) return found;
+        }
+
+        const fallback = await loadFromApiCandidates(item.type, String(item.id));
+        if (fallback) return fallback;
+
+        return { url: '', type: 'video' };
       }
 
       async function playWithServer(item, serverIndex) {
@@ -1363,7 +1509,7 @@
       function openDetail(item) {
         state.selected = item;
         const poster = getPoster(item);
-        detailBackdrop.style.backgroundImage = `linear-gradient(180deg, rgba(9,13,22,0.2), rgba(9,13,22,0.95)), url('${poster}')`;
+        detailBackdrop.style.backgroundImage = `linear-gradient(180deg, rgba(9, 13, 22, 0.3), rgba(9, 13, 22, 0.95)), url('${poster}')`;
         detailPoster.src = poster;
         detailTitle.textContent = item.title;
         detailYear.textContent = item.year || '2026';
@@ -1371,17 +1517,9 @@
         detailLanguage.textContent = getLanguageBadge(item.language);
         detailRating.textContent = item.rating || '8.9';
         detailDescription.textContent = item.description;
-
-        const tagList = [
-          item.quality || 'HD',
-          ...(item.genres || []).slice(0, 4),
-          getLanguageBadge(item.language)
-        ];
-        detailTags.innerHTML = tagList.map((tag) => `<span>${tag}</span>`).join('');
-
+        detailTags.innerHTML = (item.genres || []).slice(0, 6).map((tag) => `<span>${tag}</span>`).join('');
         document.getElementById('detailPlayBtn').onclick = () => openPlayer(item);
-        document.getElementById('detailTrailerBtn').onclick = () => toggleFavorite(String(item.id));
-
+        document.getElementById('detailTrailerBtn').onclick = () => toggleFavorite(item);
         detailPanel.classList.remove('hidden');
       }
 
@@ -1389,38 +1527,36 @@
         detailPanel.classList.add('hidden');
       }
 
-      function extractHomeList(payload) {
-        const first = extractArray(payload);
-        if (first.length) return first.map(normalizeItem).filter(Boolean);
-
-        if (payload && typeof payload === 'object') {
-          const nested = Object.values(payload).find((value) => Array.isArray(value));
-          if (nested) return nested.map(normalizeItem).filter(Boolean);
+      function toggleFavorite(item) {
+        const exists = state.favorites.some((entry) => String(entry.id) === String(item.id));
+        if (exists) {
+          state.favorites = state.favorites.filter((entry) => String(entry.id) !== String(item.id));
+        } else {
+          state.favorites.push(item);
         }
 
-        return [];
+        renderCatalog();
+        renderFavorites();
       }
 
-      async function loadContent() {
+      async function loadInitialData() {
         try {
-          const payload = await apiFetch('/home');
-          const items = extractHomeList(payload);
-          state.items = items.filter(Boolean);
+          const items = await loadCatalogData();
 
-          if (!state.items.length) {
-            catalogGrid.innerHTML = '<div class="empty-state">' + t('noApi') + '</div>';
+          if (!items.length) {
+            catalogRoot.innerHTML = '<div class="empty-state">' + t('noApi') + '</div>';
             favoritesGrid.innerHTML = '<div class="empty-state">' + t('noApi') + '</div>';
             return;
           }
 
-          const allGenres = [...new Set(state.items.flatMap((item) => item.genres || []).filter(Boolean))];
+          const allGenres = [...new Set(items.flatMap((item) => item.genres || []).filter(Boolean))];
           populateGenres(allGenres);
-          state.filtered = [...state.items];
-          populateHero(state.items[0]);
+          state.filtered = [...items];
+          populateHero(items[0]);
           renderCatalog();
           renderFavorites();
         } catch (error) {
-          catalogGrid.innerHTML = '<div class="empty-state">' + t('noApi') + '</div>';
+          catalogRoot.innerHTML = '<div class="empty-state">' + t('noApi') + '</div>';
           favoritesGrid.innerHTML = '<div class="empty-state">' + t('noApi') + '</div>';
           console.error(error);
         }
@@ -1450,23 +1586,11 @@
 
       document.getElementById('addFeaturedBtn').addEventListener('click', () => {
         const featured = state.items[0];
-        if (featured) {
-          toggleFavorite(String(featured.id));
-          openDetail(featured);
-        }
+        if (featured) toggleFavorite(featured);
       });
 
-      document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-          closeDetail();
-          setPlayerVisible(false);
-        }
-      });
-
-      window.addEventListener('DOMContentLoaded', () => {
-        applyTranslations();
-        loadContent();
-      });
+      applyTranslations();
+      loadInitialData();
     </script>
   </body>
 </html>
