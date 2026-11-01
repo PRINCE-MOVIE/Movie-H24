@@ -1035,21 +1035,32 @@ function dedupeResult(path, json) {
   return json;
 }
 
-// L'API renvoie la même liste (films + séries mélangés) pour /movies et /series.
-// On garde donc, selon l'onglet, uniquement le bon type, et on parcourt quelques
-// pages de plus si une page filtrée contient trop peu de titres.
+// L'API renvoie EXACTEMENT la même liste pour /movies et /series, et colle sur
+// chaque titre le "type" de la route appelée (donc le champ "type" n'est pas
+// fiable). On reconnaît une série d'après l'adresse source et le nom
+// ("saison", "S01E02"...). Heuristique : un titre de série sans "saison" dans
+// son nom reste classé parmi les films.
+function isSeriesItem(it) {
+  const url = String((it && it.url) || "").toLowerCase();
+  if (/\/(series?|tv-?shows?|shows?)\//.test(url)) return true;
+  const t = (String((it && it.slug) || "") + " " + String((it && it.title) || "")).toLowerCase();
+  return /(saison|season|\bs\d{1,2}\s?e\d{1,3}\b|-s\d{1,2}-|[ -]s\d{1,2}$|episodes?\b|épisodes?\b|integrale|intégrale)/.test(t);
+}
 const TAB_KEEP = {
-  movies: (it) => String(it.type) !== "series",
-  series: (it) => String(it.type) === "series",
+  movies: (it) => !isSeriesItem(it),
+  series: (it) => isSeriesItem(it),
 };
-async function apiTabList(tab, page, want = 12, maxExtra = 4) {
+async function apiTabList(tab, page, want = 12, maxExtra = 5) {
   const json = await api(`/${tab}`, { page });
   const keep = TAB_KEEP[tab];
   const meta = json.meta || {};
   if (!keep) return { data: json.data, meta, scanned: page };
+  const kind = tab === "series" ? "series" : "movie";
   const seen = new Set();
   const out = [];
-  const take = (arr) => (arr || []).forEach(it => { if (keep(it) && !seen.has(it.slug)) { seen.add(it.slug); out.push(it); } });
+  const take = (arr) => (arr || []).forEach(it => {
+    if (keep(it) && !seen.has(it.slug)) { seen.add(it.slug); out.push(Object.assign({}, it, { type: kind })); }
+  });
   take(json.data);
   const last = Number(meta.last_page) || page;
   let p = page;
@@ -2504,6 +2515,8 @@ async function viewDiagnostic() {
   // Films : on teste plusieurs titres de la liste (pas seulement le premier)
   const lm = await pj("Liste films", "/movies?page=1");
   if (lm) {
+    lines.push("  Types/adresses : " + lm.data.slice(0, 8).map(it => { let u = it.url || ""; try { u = new URL(u).pathname; } catch (e) {} return `${it.type}${isSeriesItem(it) ? "*" : ""} ${u}`; }).join(" | "));
+    show();
     let okServers = false;
     for (const it of lm.data.slice(0, 6)) {
       const base = it.type === "series" ? "/series/" : "/movies/";
@@ -2570,8 +2583,8 @@ function buildSearchIndex() {
           const j = await r.json();
           if (!j.success) break;
           (j.data || []).forEach(it => {
-            if (it && it.slug && it.title) map.set((it.type || cat) + "|" + it.slug,
-              { title: it.title, slug: it.slug, image: it.image, version: it.version, type: it.type || cat.replace(/s$/, ""), latest_episode: it.latest_episode || null });
+            if (it && it.slug && it.title) map.set(((cat === "movies" || cat === "series") ? "mv" : (it.type || cat)) + "|" + it.slug,
+              { title: it.title, slug: it.slug, url: it.url, image: it.image, version: it.version, type: (cat === "movies" || cat === "series") ? (isSeriesItem(it) ? "series" : "movie") : (it.type || cat.replace(/s$/, "")), latest_episode: it.latest_episode || null });
           });
           if (j.meta && j.meta.last_page) last = Math.min(Number(j.meta.last_page) || last, IDX_MAX_PAGES);
           if (++sinceSave >= 6) { sinceSave = 0; save(false); }
