@@ -952,6 +952,9 @@ async function apiRaw(path, params = {}, baseIdx = 0) {
   // (souvent saturés) ne démarrent que s'il n'a pas répondu après un délai.
   // Avant, tous partaient en même temps et faisaient la queue devant le
   // proxy interne, d'où les films qui n'apparaissaient que par moments.
+  let rejectFast;
+  const fastFail = new Promise((_, rej) => { rejectFast = rej; });
+  fastFail.catch(() => {});
   const orderedList = orderedProxies();
   const controllers = orderedList.map(() => new AbortController());
   const attempts = orderedList.map(([proxy, i], orderIdx) => (async () => {
@@ -969,6 +972,9 @@ async function apiRaw(path, params = {}, baseIdx = 0) {
       if (!json.success) {
         const err = new Error(json.error?.message || "Erreur inconnue.");
         err.code = json.error?.code;
+        // Réponse d'erreur réelle de l'API reçue via NOTRE proxy : inutile
+        // d'attendre les proxys publics (ils obtiendraient la même erreur).
+        if (proxy === MY_PROXY_URL) { err.definitive = true; rejectFast(err); }
         throw err;
       }
       try { sessionStorage.setItem("pm_last_proxy_idx", String(i)); } catch (e) {}
@@ -981,7 +987,7 @@ async function apiRaw(path, params = {}, baseIdx = 0) {
   if (directAttempt) attempts.push(directAttempt);
 
   try {
-    const json = await Promise.any(attempts);
+    const json = await Promise.race([Promise.any(attempts), fastFail]);
     controllers.forEach(c => c.abort());
     directController.abort();
     // Une liste vide n'est jamais mise en cache.
@@ -1001,6 +1007,7 @@ async function apiRaw(path, params = {}, baseIdx = 0) {
     const err = new Error(lastErr?.message || "Source indisponible. Réessaie dans un instant.");
     err.code = lastErr?.code || "source_unavailable";
     if (err.code === "not_found") err.message = "Ce titre n'est pas disponible pour le moment sur la source.";
+    if (err.code === "source_unavailable") err.message = "La source est indisponible pour le moment (côté API). Réessaie un peu plus tard.";
     throw err;
   }
 }
@@ -1027,6 +1034,31 @@ function dedupeResult(path, json) {
   });
   return json;
 }
+
+// L'API renvoie la même liste (films + séries mélangés) pour /movies et /series.
+// On garde donc, selon l'onglet, uniquement le bon type, et on parcourt quelques
+// pages de plus si une page filtrée contient trop peu de titres.
+const TAB_KEEP = {
+  movies: (it) => String(it.type) !== "series",
+  series: (it) => String(it.type) === "series",
+};
+async function apiTabList(tab, page, want = 12, maxExtra = 4) {
+  const json = await api(`/${tab}`, { page });
+  const keep = TAB_KEEP[tab];
+  const meta = json.meta || {};
+  if (!keep) return { data: json.data, meta, scanned: page };
+  const seen = new Set();
+  const out = [];
+  const take = (arr) => (arr || []).forEach(it => { if (keep(it) && !seen.has(it.slug)) { seen.add(it.slug); out.push(it); } });
+  take(json.data);
+  const last = Number(meta.last_page) || page;
+  let p = page;
+  while (out.length < want && p < last && p - page < maxExtra) {
+    p++;
+    try { take((await api(`/${tab}`, { page: p })).data); } catch (e) { break; }
+  }
+  return { data: out, meta: Object.assign({}, meta, { last_page: last }), scanned: p };
+}
 async function api(path, params = {}, altParams = null) {
   try {
     return dedupeResult(path, await apiRaw(path, params));
@@ -1035,6 +1067,7 @@ async function api(path, params = {}, altParams = null) {
       try { return dedupeResult(path, await apiRaw(path, altParams)); }
       catch (e2) { /* on retombe sur la dernière tentative ci-dessous */ }
     }
+    if (["not_found", "wrong_type", "query_too_short", "no_servers", "missing_episode"].includes(e1.code)) throw e1;
     await new Promise(r => setTimeout(r, 700));
     return dedupeResult(path, await apiRaw(path, params));
   }
@@ -1718,7 +1751,7 @@ async function viewAccueil() {
   const stillOnThisPage = () => location.hash === startHash;
 
   const results = await Promise.allSettled(HOME_SECTIONS.map((s, i) =>
-    new Promise(r => setTimeout(r, i * 120)).then(() => api(`/${s.tab}`, { page: 1 }))
+    new Promise(r => setTimeout(r, i * 120)).then(() => Promise.race([apiTabList(s.tab, 1), new Promise((_, rej) => setTimeout(() => rej(new Error("délai dépassé")), 12000))]))
   ));
   if (!stillOnThisPage()) return;
   rowsEl.innerHTML = "";
@@ -1818,8 +1851,9 @@ async function loadCatalogueTab() {
   const mySeq = ++catState.seq;
   if (!catState.hasContent) { app.innerHTML = `<div class="loader">Chargement</div>`; pag.innerHTML = ""; }
   try {
-    const json = await api(`/${catState.tab}`, { page: catState.page });
+    const json = await apiTabList(catState.tab, catState.page);
     if (mySeq !== catState.seq) return;
+    catState.scanned = json.scanned;
     catState.hasContent = true;
     renderCatalogueGrid(json.data);
     renderCataloguePagination(json.meta);
@@ -1841,10 +1875,11 @@ function renderCataloguePagination(meta) {
   const pag = document.getElementById("catPagination");
   if (!meta || meta.last_page <= 1) { pag.innerHTML = ""; return; }
   const total = meta.last_page, p = catState.page;
+  const sc = catState.scanned || p;
   let html = `<button ${p === 1 ? "disabled" : ""} onclick="goCataloguePage(${p - 1})">« Précédent</button>`;
   const start = Math.max(1, p - 2), end = Math.min(total, p + 2);
   for (let i = start; i <= end; i++) html += `<button class="${i === p ? "active" : ""}" onclick="goCataloguePage(${i})">${i}</button>`;
-  html += `<button ${p === total ? "disabled" : ""} onclick="goCataloguePage(${p + 1})">Suivant »</button>`;
+  html += `<button ${sc >= total ? "disabled" : ""} onclick="goCataloguePage(${sc + 1})">Suivant »</button>`;
   pag.innerHTML = html;
 }
 function goCataloguePage(p) { catState.page = p; loadCatalogueTab(); window.scrollTo({ top: 0, behavior: "smooth" }); }
@@ -2773,7 +2808,7 @@ async function loadSportBody(silent) {
     }
   } catch (e) {
     if (silent) return;
-    body.innerHTML = `<div class="error-box"><div class="error-icon">${WARN_ICON}</div><h2>Une erreur est survenue</h2><p>${escHtml(e.message)}</p><button class="btn" type="button" onclick="viewSport()">Réessayer</button></div>`;
+    body.innerHTML = `<div class="error-box"><div class="error-icon">${WARN_ICON}</div><h2>Une erreur est survenue</h2><p>${escHtml(e.message)}</p><button class="btn" type="button" onclick="viewSport()">Réessayer</button>${spState.tab !== "tv" ? `<button class="btn" type="button" style="margin-left:8px" onclick="spState.tab='tv';viewSport()">Voir les chaînes gratuites</button>` : ""}</div>`;
   }
 }
 
