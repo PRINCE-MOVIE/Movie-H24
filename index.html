@@ -758,6 +758,213 @@ body.welcome-body { background: #07070a; overflow-x: hidden; }
 .mg-reader img{display:block;width:100%;height:auto;background:#111;min-height:200px}
 .mg-chapters{display:flex;flex-wrap:wrap;gap:8px;max-height:60vh;overflow:auto}
 @media (max-width:760px){ .bottom-nav a{font-size:10px;gap:2px;letter-spacing:0;white-space:nowrap} .bottom-nav a svg{width:20px;height:20px} }
+
+/* =====================================================================
+   PRINCE MOVIE — couche de design « Grande salle » (version 2026-11-01-G)
+   Cette couche vient APRÈS tout le reste : elle raffine sans rien casser.
+   ===================================================================== */
+:root {
+  --bg: #07070b; --bg-2: #0f0f16; --card: #12121a;
+  --line: rgba(255,255,255,.08); --line-2: rgba(255,255,255,.14);
+  --glass: rgba(12,12,18,.66);
+  --r: 16px; --r-lg: 22px;
+  --font-ui: 'Sora', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Cinzel', 'Times New Roman', Georgia, serif;
+  --gold-grad: linear-gradient(135deg, #f8dc9a 0%, #e8bf6f 45%, #c98f26 100%);
+  --red-grad: linear-gradient(135deg, #ff2a3d 0%, #e50914 48%, #8e0610 100%);
+}
+html { scroll-behavior: smooth; color-scheme: dark; }
+body {
+  font-family: var(--font-ui); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  background:
+    radial-gradient(1100px 640px at 88% -8%, rgba(229,9,20,.13), transparent 62%),
+    radial-gradient(900px 560px at -8% 18%, rgba(232,191,111,.07), transparent 58%),
+    var(--bg);
+  background-attachment: fixed;
+}
+/* Grain de pellicule, très discret */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: .045; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+::selection { background: rgba(229,9,20,.55); color: #fff; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 8px; }
+* { scrollbar-width: thin; scrollbar-color: #2b2b36 transparent; }
+
+/* En-tête en verre */
+header {
+  background: linear-gradient(180deg, rgba(7,7,11,.86), rgba(7,7,11,.58));
+  -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
+  border-width: 0 0 1px; border-style: solid; border-image: linear-gradient(90deg, transparent, rgba(232,191,111,.38), transparent) 1;
+}
+header.transparent-header { border-image: none; border-bottom-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+header nav a { font-weight: 600; letter-spacing: .2px; }
+.search-box input, .search-box-lg {
+  background: rgba(255,255,255,.05); border: 1px solid var(--line); border-radius: 999px; padding-left: 18px;
+  transition: border-color .25s, box-shadow .25s, background .25s;
+}
+.search-box input:focus, .search-box-lg:focus-within { border-color: rgba(232,191,111,.7); box-shadow: 0 0 0 4px rgba(232,191,111,.12); background: rgba(255,255,255,.07); }
+
+/* Titres : caractère « salle de cinéma » */
+h1.section-title, .row-head h2, .settings-section h2 {
+  font-family: var(--font-display); font-weight: 800; letter-spacing: .02em;
+}
+h1.section-title { font-size: clamp(20px, 3.2vw, 28px); }
+.row-head h2 { font-size: clamp(18px, 2.6vw, 24px); }
+.row-head h2::before, h1.section-title::before, .settings-section h2::before {
+  width: 4px; background: var(--gold-grad); box-shadow: 0 0 14px rgba(232,191,111,.55);
+}
+.row-head a { color: var(--gold); font-weight: 700; opacity: .85; }
+.row-head a:hover { opacity: 1; color: #f8dc9a; }
+.kicker { color: var(--gold); letter-spacing: 1.6px; }
+
+/* Boutons */
+.btn {
+  background: var(--red-grad); color: #fff; border-radius: 14px; letter-spacing: .2px;
+  box-shadow: 0 10px 28px -8px rgba(229,9,20,.65), inset 0 1px 0 rgba(255,255,255,.25);
+  position: relative; overflow: hidden;
+}
+.btn::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.28) 50%, transparent 70%); transform: translateX(-120%); transition: transform .7s var(--ease); }
+.btn:hover::after { transform: translateX(120%); }
+.btn-outline, .btn-ghost { border-radius: 14px; background: rgba(255,255,255,.06); border: 1px solid var(--line-2); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+
+/* Affiches : format 2:3 propre, reflet doré au survol */
+.card img, .row-card img { aspect-ratio: 2 / 3; height: auto; width: 100%; }
+.card, .row-card { border-radius: var(--r); background: var(--card); border: 1px solid var(--line); box-shadow: 0 14px 30px -16px rgba(0,0,0,.9); }
+.card:hover, .row-card:hover {
+  border-color: rgba(232,191,111,.55);
+  box-shadow: 0 26px 50px -18px rgba(0,0,0,.95), 0 0 0 1px rgba(232,191,111,.25), 0 0 40px rgba(229,9,20,.22);
+}
+.card a::after, .row-card a::after { background: var(--red-grad); box-shadow: 0 12px 30px rgba(229,9,20,.6), inset 0 1px 0 rgba(255,255,255,.35); }
+.type-chip, .rate-chip { -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px 16px; }
+
+/* Puces, onglets */
+.chip.active { background: var(--red-grad); box-shadow: 0 10px 26px -8px rgba(229,9,20,.7); }
+.chip-row { scrollbar-width: none; } .chip-row::-webkit-scrollbar { display: none; }
+
+/* Fiche détail */
+.dhero-content h1 { font-family: var(--font-display); font-weight: 900; letter-spacing: .01em; }
+.dhero-synopsis { color: #e6e6ee; line-height: 1.75; }
+.ep-row { border-radius: 14px; }
+.ep-row .ep-num { font-family: var(--font-display); color: var(--gold); }
+.season-select { border-radius: 12px; }
+
+/* Barre du bas : dock flottant en verre */
+.bottom-nav {
+  left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); padding: 8px 6px; border-radius: 22px;
+  background: rgba(14,14,20,.72); border: 1px solid var(--line-2);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6); backdrop-filter: blur(22px) saturate(1.6);
+  box-shadow: 0 20px 50px -10px rgba(0,0,0,.85);
+}
+.bottom-nav a.active::before { top: -1px; }
+.has-bottom-nav { padding-bottom: 104px; }
+@media (min-width: 900px) { .bottom-nav { max-width: 560px; margin: 0 auto; } }
+
+/* Formulaires, paramètres */
+.field input, .field select, .welcome-form input { border-radius: 14px; background: rgba(255,255,255,.04); border-color: var(--line-2); }
+.field input:focus, .field select:focus, .welcome-form input:focus { border-color: rgba(232,191,111,.75); box-shadow: 0 0 0 4px rgba(232,191,111,.12); }
+.settings-section { border-radius: var(--r-lg); background: rgba(255,255,255,.03); border: 1px solid var(--line); }
+
+/* Chargement : anneau doré */
+.loader::after { border-color: var(--gold); border-top-color: transparent; }
+.loader { color: var(--gold); }
+
+/* Lecteur manga */
+.mg-reader img { border-radius: 4px; margin-bottom: 4px; }
+
+/* ================= LECTEUR « SALLE OBSCURE » ================= */
+.cine { max-width: 1180px; padding-top: 14px; }
+.cine-top { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.cine-back {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; cursor: pointer; font: inherit; font-weight: 700; font-size: 13px;
+  color: var(--text); background: rgba(255,255,255,.06); border: 1px solid var(--line-2); border-radius: 999px; padding: 9px 16px 9px 10px;
+  transition: background .2s, border-color .2s, transform .2s var(--ease);
+}
+.cine-back svg { width: 18px; height: 18px; }
+.cine-back:hover { background: rgba(232,191,111,.12); border-color: rgba(232,191,111,.5); transform: translateX(-2px); }
+.cine-title {
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(16px, 2.8vw, 24px); letter-spacing: .02em; line-height: 1.2;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  border: 0; padding: 0; margin: 0;
+}
+.cine-title::before { display: none; }
+.cine-stage {
+  position: relative; border-radius: var(--r-lg); background: #000; isolation: isolate;
+  box-shadow: 0 40px 90px -20px rgba(0,0,0,.95), 0 0 0 1px rgba(232,191,111,.22), 0 0 90px rgba(229,9,20,.14);
+}
+.cine-stage::before { content: ""; position: absolute; inset: -2px; z-index: -1; border-radius: calc(var(--r-lg) + 2px); background: conic-gradient(from 210deg, rgba(232,191,111,.5), rgba(229,9,20,.45), rgba(232,191,111,.1), rgba(232,191,111,.5)); filter: blur(22px); opacity: .45; }
+.cine-stage:fullscreen { border-radius: 0; box-shadow: none; display: flex; align-items: center; background: #000; }
+.cine-stage:fullscreen .player-wrap { max-width: none; border-radius: 0; box-shadow: none; }
+.cine .player-wrap { position: relative; max-width: none; margin: 0; border-radius: var(--r-lg); box-shadow: none; background: #000; }
+.cine-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+.cine-loading {
+  position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: radial-gradient(600px 300px at 50% 40%, rgba(229,9,20,.16), transparent 70%), #05050a; color: var(--text-muted); font-size: 14px;
+  transition: opacity .4s ease;
+}
+.cine-loading.done { opacity: 0; pointer-events: none; }
+.cine-loading p { margin: 0; letter-spacing: .3px; }
+.cine-spin { width: 46px; height: 46px; border-radius: 50%; border: 3px solid rgba(232,191,111,.18); border-top-color: var(--gold); animation: spin .9s linear infinite; }
+.cine-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; margin: 18px 0 8px; }
+.cine .servers-tabs { margin: 0; max-width: none; justify-content: flex-start; flex: 1 1 320px; }
+.cine .server-btn { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 13px; font-weight: 700; padding: 9px 16px; }
+.cine .server-btn small { opacity: .65; font-weight: 600; }
+.server-dot { width: 7px; height: 7px; border-radius: 50%; background: #5a5a68; transition: background .25s, box-shadow .25s; }
+.cine .server-btn.active { background: var(--red-grad); border-color: transparent; }
+.cine .server-btn.active .server-dot { background: #ffe9a8; box-shadow: 0 0 10px #ffe9a8; }
+.cine-tools, .cine-ep, .cine-tools-main { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cine-tool {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; text-decoration: none;
+  color: var(--text); background: rgba(255,255,255,.05); border: 1px solid var(--line); border-radius: 12px; padding: 9px 13px;
+  transition: background .2s, border-color .2s, transform .2s var(--ease), color .2s;
+}
+.cine-tool svg { width: 17px; height: 17px; flex-shrink: 0; }
+.cine-tool:hover { background: rgba(255,255,255,.1); border-color: rgba(232,191,111,.5); transform: translateY(-2px); }
+.cine-tool[aria-pressed="true"] { background: rgba(232,191,111,.16); border-color: rgba(232,191,111,.7); color: #f8dc9a; }
+.cine-tool-main { background: var(--red-grad); border-color: transparent; color: #fff; box-shadow: 0 10px 24px -8px rgba(229,9,20,.7); }
+.cine-hint { text-align: center; margin: 14px 0 0; font-size: 13.5px; color: var(--text-muted); min-height: 1.4em; }
+.cine-hint a { color: var(--gold); font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+/* Mode cinéma : le reste de la page s'éteint */
+body.cine-on::after { content: ""; position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.94); pointer-events: none; animation: fadeIn .4s ease both; }
+body.cine-on .cine-top, body.cine-on .cine-bar, body.cine-on .cine-hint { position: relative; z-index: 95; }
+body.cine-on .cine-stage { position: relative; z-index: 95; }
+body.cine-on header, body.cine-on .bottom-nav { opacity: .0; pointer-events: none; transition: opacity .4s; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Lecteur direct (sport) */
+.vid-shell { position: relative; border-radius: var(--r-lg); overflow: hidden; background: #000; box-shadow: 0 0 0 1px rgba(232,191,111,.2), 0 30px 70px -20px rgba(0,0,0,.9); }
+.vid-shell video { display: block; width: 100%; max-height: 66vh; background: #000; }
+.vid-overlay { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 20px; text-align: center; background: rgba(5,5,10,.82); color: var(--text-muted); font-size: 14px; transition: opacity .35s; }
+.vid-overlay.hidden { opacity: 0; pointer-events: none; }
+.vid-overlay p { margin: 0; max-width: 340px; line-height: 1.5; }
+
+/* Le lecteur tient dans l'écran : la barre d'outils reste visible sans défiler */
+@media (min-width: 900px) {
+  .cine-stage { width: min(100%, calc((100svh - 300px) * 1.7778)); min-width: 640px; margin: 0 auto; }
+}
+.account-avatar { color: #fff; background: var(--red-grad); box-shadow: 0 8px 20px -6px rgba(229,9,20,.6); }
+@media (max-width: 640px) {
+  .cine { padding: 12px 12px 130px; }
+  .cine .servers-tabs { flex: 0 0 auto; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .cine .servers-tabs::-webkit-scrollbar { display: none; }
+  .cine .server-btn { flex: 0 0 auto; white-space: nowrap; }
+  .cine .player-wrap, .cine-stage { border-radius: 14px; }
+  .cine-tool span { display: none; }
+  .cine-tool.cine-tool-main span { display: inline; }
+  .cine-tool { padding: 10px 12px; }
+  .cine-bar { flex-direction: column; align-items: stretch; }
+  .cine-tools { justify-content: flex-start; }
+  .cine-ep { flex: 1 1 100%; }
+  .cine-ep:empty { display: none; }
+  .cine-ep .cine-tool-main { flex: 1; justify-content: center; }
+  .cine-tools-main { flex: 1 1 100%; justify-content: space-between; }
+  .cine-tools-main .cine-tool { flex: 1; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+}
+
 </style>
 </head>
 <body>
@@ -794,6 +1001,13 @@ body.welcome-body { background: #07070a; overflow-x: hidden; }
 <div id="app"><div class="loader">Chargement</div></div>
 
 <script>
+/* SÉCURITÉ : encodeURIComponent laisse passer ' ( ) ! * ~ — une apostrophe dans un slug pouvait sortir
+   d'un attribut onclick="nav('…')" et exécuter du code. On encode ces caractères aussi. */
+(function () {
+  const _enc = window.encodeURIComponent;
+  window.encodeURIComponent = (s) => _enc(s).replace(/[!'()*~]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+})();
+
 /* =========================================================
    API — cœur de communication avec le backend PRINCE MOVIE
    ========================================================= */
@@ -1099,20 +1313,41 @@ function getCurrentUser() {
 function isLoggedIn() {
   return sessionStorage.getItem(SESSION_KEY) === "1" || localStorage.getItem(SESSION_KEY) === "1";
 }
-function registerUser({ nom, prenom, email, telephone, password }) {
-  const user = { nom, prenom, email, telephone, password };
+/* Mot de passe : on ne le garde plus en clair dans le navigateur (PBKDF2 + sel aléatoire). */
+async function hashPwd(pw, saltB64) {
+  if (!(window.crypto && crypto.subtle)) return { salt: "", hash: "plain:" + pw };
+  const enc = new TextEncoder();
+  const salt = saltB64 ? Uint8Array.from(atob(saltB64), (c) => c.charCodeAt(0)) : crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey("raw", enc.encode(pw), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 120000, hash: "SHA-256" }, key, 256);
+  const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  return { salt: b64(salt), hash: b64(bits) };
+}
+async function registerUser({ nom, prenom, email, telephone, password }) {
+  const { salt, hash } = await hashPwd(password);
+  const user = { nom, prenom, email, telephone, salt, hash };
   localStorage.setItem(AUTH_KEY, JSON.stringify(user));
   localStorage.setItem(SESSION_KEY, "1");
 }
-function loginUser(email, password) {
+async function loginUser(email, password) {
   const user = getCurrentUser();
   if (!user) return { ok: false, message: "Aucun compte trouvé. Inscris-toi d'abord." };
-  if (user.email.toLowerCase() !== email.toLowerCase() || user.password !== password) {
-    return { ok: false, message: "Email ou mot de passe incorrect." };
+  let ok = false;
+  if (user.email && user.email.toLowerCase() === String(email).toLowerCase()) {
+    if (user.hash) {
+      const r = await hashPwd(password, user.salt || null);
+      ok = r.hash === user.hash;
+    } else if (user.password) {
+      // Ancien compte (mot de passe en clair) : on vérifie puis on convertit tout de suite.
+      ok = user.password === password;
+      if (ok) { const r = await hashPwd(password); updateUser({ salt: r.salt, hash: r.hash, password: undefined }); }
+    }
   }
+  if (!ok) return { ok: false, message: "Email ou mot de passe incorrect." };
   localStorage.setItem(SESSION_KEY, "1");
   return { ok: true };
 }
+
 function logoutUser() {
   localStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(SESSION_KEY);
@@ -1192,7 +1427,7 @@ function showError(message, homeRoute) {
     <div class="error-box">
       <div class="error-icon">${WARN_ICON}</div>
       <h2>Une erreur est survenue</h2>
-      <p>${message}</p>
+      <p>${escHtml(message)}</p>
       <a class="btn" onclick="nav('${home}')">Retour au catalogue</a>
     </div>`;
 }
@@ -1230,15 +1465,15 @@ function cardHtml(item, size /* "grid" | "row" */) {
   const epTag = item.latest_episode || "";
   const cls = size === "row" ? "row-card" : "card";
   return `
-    <div class="${cls}" title="${item.title}">
-      <button type="button" class="mylist-heart ${inList ? "active" : ""}" data-slug="${item.slug}" aria-label="Ma Liste">${inList ? "♥" : "♡"}</button>
+    <div class="${cls}" title="${escHtml(item.title)}">
+      <button type="button" class="mylist-heart ${inList ? "active" : ""}" data-slug="${escHtml(item.slug)}" aria-label="Ma Liste">${inList ? "♥" : "♡"}</button>
       <a onclick="nav('${route}?slug=${encodeURIComponent(item.slug)}')">
-        <img src="${fastImg(item.image)}" alt="${item.title}" loading="lazy"
+        <img src="${escHtml(fastImg(item.image))}" alt="${escHtml(item.title)}" loading="lazy"
              data-orig="${encodeURIComponent(item.image)}" data-retried="0" onerror="imgFallback(this)">
         <span class="type-chip">${typeLabel(item)}</span>
         ${itemRating(item) ? `<span class="rate-chip">${itemRating(item)}</span>` : ""}
-        <span class="badge ${badgeClass} row-card-badge">${item.version || ""}</span>
-        ${size !== "row" && epTag ? `<span class="tag card-ep-tag">${epTag}</span>` : ""}
+        <span class="badge ${badgeClass} row-card-badge">${escHtml(item.version || "")}</span>
+        ${size !== "row" && epTag ? `<span class="tag card-ep-tag">${escHtml(epTag)}</span>` : ""}
       </a>
     </div>`;
 }
@@ -1505,12 +1740,12 @@ function viewConnexion() {
     e.currentTarget.innerHTML = show ? AUTH_ICONS.eyeOff : AUTH_ICONS.eye;
     e.currentTarget.setAttribute("aria-label", show ? "Masquer le mot de passe" : "Afficher le mot de passe");
   });
-  document.getElementById("loginForm").addEventListener("submit", (e) => {
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value;
     const errEl = document.getElementById("loginError");
-    const result = loginUser(email, password);
+    const result = await loginUser(email, password);
     if (!result.ok) { errEl.textContent = result.message; errEl.style.display = "flex"; return; }
     renderChrome();
     // BUGFIX : après connexion, on repasse toujours par la page de
@@ -1541,7 +1776,7 @@ function viewInscription() {
   const prefillEmail = getParam("email");
   if (prefillEmail) document.getElementById("email").value = prefillEmail;
   function setInvalid(id, invalid) { document.getElementById(id).classList.toggle("invalid", invalid); }
-  document.getElementById("signupForm").addEventListener("submit", (e) => {
+  document.getElementById("signupForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const prenom = document.getElementById("prenom").value.trim();
     const nom = document.getElementById("nom").value.trim();
@@ -1556,7 +1791,7 @@ function viewInscription() {
     setInvalid("f-prenom", !prenom); setInvalid("f-nom", !nom); setInvalid("f-email", !emailOk);
     setInvalid("f-telephone", !phoneOk); setInvalid("f-password", !passOk); setInvalid("f-password2", !matchOk);
     if (!prenom || !nom || !emailOk || !phoneOk || !passOk || !matchOk) return;
-    registerUser({ nom, prenom, email, telephone, password });
+    await registerUser({ nom, prenom, email, telephone, password });
     renderChrome();
     // BUGFIX : même logique qu'à la connexion — on repasse par la page de
     // bienvenue plutôt que d'aller directement à l'accueil.
@@ -2038,13 +2273,13 @@ function detailHeroHtml({ image, title, year, badge, tags, synopsis, playHref, p
   return `
     <div class="dhero">
       <div class="dhero-content">
-        <h1>${title}</h1>
+        <h1>${escHtml(title)}</h1>
         <div class="dhero-meta">
-          ${year ? `<span class="year">${year}</span>` : ""}
-          ${badge ? `<span class="badge ${badge.cls}">${badge.label}</span>` : ""}
-          ${(tags || []).map(t => `<span class="tag">${t}</span>`).join("")}
+          ${year ? `<span class="year">${escHtml(year)}</span>` : ""}
+          ${badge ? `<span class="badge ${badge.cls}">${escHtml(badge.label)}</span>` : ""}
+          ${(tags || []).map(t => `<span class="tag">${escHtml(t)}</span>`).join("")}
         </div>
-        <p class="dhero-synopsis">${synopsis || "Pas de synopsis disponible."}</p>
+        <p class="dhero-synopsis">${escHtml(synopsis || "Pas de synopsis disponible.")}</p>
         <div class="dhero-actions">
           ${playHref ? `<a class="btn" href="#/${String(playHref).replace(/&/g, "&amp;")}">▶ ${playLabel || "Regarder"}</a>` : ""}
         </div>
@@ -2086,10 +2321,10 @@ function episodesBySeasonHtml(episodes, hrefBuilder) {
 
   const renderList = (key) => `<div class="ep-rows">${(seasons[key] || []).map(ep => `
     <a class="ep-row" onclick="nav('${hrefBuilder(ep)}')">
-      <div class="ep-num">${ep.number ?? "•"}</div>
+      <div class="ep-num">${escHtml(ep.number ?? "•")}</div>
       <div class="ep-info">
-        <div class="ep-title">${ep.title || "Épisode " + ep.number}</div>
-        ${ep.version ? `<div class="ep-sub">${ep.version}</div>` : ""}
+        <div class="ep-title">${escHtml(ep.title || "Épisode " + ep.number)}</div>
+        ${ep.version ? `<div class="ep-sub">${escHtml(ep.version)}</div>` : ""}
       </div>
       <div class="ep-play">${PLAY_ICON_SVG}</div>
     </a>`).join("")}</div>`;
@@ -2136,11 +2371,11 @@ async function viewFilm() {
           <h1 class="section-title">Titres similaires</h1>
           <div class="similar-row">
             ${m.related.map(r => `
-              <div class="row-card" title="${r.title}">
+              <div class="row-card" title="${escHtml(r.title)}">
                 <a onclick="nav('${r.type === "series" ? "serie" : "film"}?slug=${encodeURIComponent(r.slug)}')">
-                  <img src="${fastImg(r.image)}" alt="${r.title}" loading="lazy"
+                  <img src="${escHtml(fastImg(r.image))}" alt="${escHtml(r.title)}" loading="lazy"
                        data-orig="${encodeURIComponent(r.image)}" data-retried="0" onerror="imgFallback(this)">
-                  <span class="badge ${cardBadgeClass(r.version)} row-card-badge">${r.version || ""}</span>
+                  <span class="badge ${cardBadgeClass(r.version)} row-card-badge">${escHtml(r.version || "")}</span>
                 </a>
               </div>`).join("")}
           </div>
@@ -2163,7 +2398,7 @@ async function viewSerie() {
     let s;
     try { ({ data: s } = await api(`/series/${encodeURIComponent(slug)}`)); }
     catch (e) { if (e.code === "wrong_type") { nav(`film?slug=${encodeURIComponent(slug)}`); return; } throw e; }
-    if (s.type === "movie") { nav(`film?slug=${slug}`); return; }
+    if (s.type === "movie") { nav(`film?slug=${encodeURIComponent(slug)}`); return; }
     document.title = `${s.title} — PRINCE MOVIE`;
     const playId = resolvePlayId(s);
     const playHref = `lecteur?${playId ? `id=${encodeURIComponent(playId)}&` : ""}type=series&slug=${encodeURIComponent(s.slug)}&title=${encodeURIComponent(s.title)}`;
@@ -2180,7 +2415,7 @@ async function viewSerie() {
     </main>`;
     loadBackdrop(s.image);
   } catch (e) {
-    if (e.code === "wrong_type") nav(`film?slug=${slug}`);
+    if (e.code === "wrong_type") nav(`film?slug=${encodeURIComponent(slug)}`);
     else showError(e.message);
   }
 }
@@ -2251,59 +2486,104 @@ function imgFallback(img) {
   img.src = PROXIES[tried] + encodeURIComponent(orig);
 }
 /* ----- Lecteur vidéo ----- */
+const CINE_ICONS = {
+  back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+  next: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4l10 8-10 8V4z"/><path d="M19 5v14"/></svg>',
+  prev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 20L9 12l10-8v16z"/><path d="M5 5v14"/></svg>',
+  swap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>',
+  full: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>',
+  cinema: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
+  ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7"/><path d="M10 14L21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>',
+};
 async function viewLecteur() {
   detailChrome();
+  document.body.classList.remove("cine-on");
   const id = getParam("id");
   const type = getParam("type");
   const slug = getParam("slug");
   const episode = getParam("episode");
   const title = getParam("title") || "Lecture";
   document.title = `${title} — PRINCE MOVIE`;
-  document.getElementById("app").innerHTML = `<main>
-    <h1 class="section-title" id="lecteurTitle">${title}</h1>
-    <div class="player-wrap" id="player"><div class="loader" style="padding:200px 0">Chargement du lecteur</div></div>
-    <div class="servers-tabs" id="tabs"></div>
-    <p id="fallbackLink" style="text-align:center;margin-top:14px;font-size:14px;color:var(--text-muted)"></p>
+  // Le titre vient de l'adresse : on l'échappe TOUJOURS (sinon n'importe qui peut injecter du code via le lien).
+  document.getElementById("app").innerHTML = `<main class="cine">
+    <div class="cine-top">
+      <button type="button" class="cine-back" id="cineBack" aria-label="Retour">${CINE_ICONS.back}<span>Retour</span></button>
+      <h1 class="cine-title section-title" id="lecteurTitle">${escHtml(title)}</h1>
+    </div>
+    <div class="cine-stage" id="cineStage">
+      <div class="player-wrap" id="player"><div class="cine-loading"><span class="cine-spin"></span><p>Chargement du lecteur…</p></div></div>
+    </div>
+    <div class="cine-bar">
+      <div class="servers-tabs" id="tabs" role="tablist" aria-label="Serveurs de lecture"></div>
+      <div class="cine-tools"><span class="cine-ep" id="cineEp"></span><span class="cine-tools-main" id="cineTools"></span></div>
+    </div>
+    <p class="cine-hint" id="fallbackLink"></p>
     <section class="similar-section" id="similar"></section>
   </main>`;
+  document.getElementById("cineBack").addEventListener("click", () => { if (history.length > 1) history.back(); else nav("catalogue"); });
+  if (!window.__cineEsc) {
+    window.__cineEsc = true;
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") document.body.classList.remove("cine-on"); });
+  }
   loadSimilar(type, slug);
+  loadEpisodeNav(type, slug, id, episode);
 
-  let servers = [];
   try {
     let data;
     if (type === "anime") {
-      ({ data } = await api(`/anime/${slug}/servers`, { episode }));
+      ({ data } = await api(`/anime/${encodeURIComponent(slug)}/servers`, { episode }));
     } else if (type === "dramas") {
-      ({ data } = await api(`/dramas/${slug}/servers`, { episode }));
+      ({ data } = await api(`/dramas/${encodeURIComponent(slug)}/servers`, { episode }));
     } else if (id) {
-      // BUGFIX : si l'id d'épisode fourni échoue (mauvais champ côté fiche
-      // film/série), on retombe sur l'endpoint "/servers" du titre lui-même.
+      // Si l'id d'épisode échoue, on retombe sur l'endpoint "/servers" du titre lui-même.
       try {
-        ({ data } = await api(`/episodes/${id}/servers`));
+        ({ data } = await api(`/episodes/${encodeURIComponent(id)}/servers`));
       } catch (e) {
-        if (slug && (type === "movies" || type === "series")) {
-          ({ data } = await api(`/${type}/${slug}/servers`));
-        } else {
-          throw e;
-        }
+        if (slug && (type === "movies" || type === "series")) ({ data } = await api(`/${type}/${encodeURIComponent(slug)}/servers`));
+        else throw e;
       }
     } else if (slug && (type === "movies" || type === "series")) {
-      ({ data } = await api(`/${type}/${slug}/servers`));
+      ({ data } = await api(`/${type}/${encodeURIComponent(slug)}/servers`));
     } else {
       throw new Error("Aucun épisode spécifié.");
     }
-
-    servers = data;
-    if (!servers || !servers.length) {
-      document.getElementById("player").innerHTML = `<div class="error-box"><p>Aucun serveur disponible.</p></div>`;
+    const seen = new Set();
+    const servers = (Array.isArray(data) ? data : []).filter((s) => s && s.server_link && !seen.has(s.server_link) && seen.add(s.server_link));
+    if (!servers.length) {
+      document.getElementById("player").innerHTML = `<div class="cine-loading"><p>Aucun serveur disponible pour ce titre pour le moment.</p><a class="btn" onclick="renderApp()">Réessayer</a></div>`;
       return;
     }
     renderServerTabs(servers);
-    switchServer(0, servers);
+    let start = 0;
+    try { const last = localStorage.getItem("pm_last_server_name"); const k = servers.findIndex((s) => s.server_name === last); if (k >= 0) start = k; } catch (e) {}
+    switchServer(start, servers);
   } catch (e) {
-    document.getElementById("player").innerHTML = `<div class="error-box"><h2>😕 Erreur</h2><p>${e.message}</p></div>`;
+    const box = document.getElementById("player");
+    if (box) box.innerHTML = `<div class="cine-loading"><p>${escHtml(e.message || "Impossible de charger le lecteur.")}</p><a class="btn" onclick="renderApp()">Réessayer</a></div>`;
   }
 }
+// Boutons « épisode précédent / suivant » (séries, animés, K-dramas).
+async function loadEpisodeNav(type, slug, id, episode) {
+  if (!slug || !["series", "anime", "dramas"].includes(type)) return;
+  const startHash = location.hash;
+  try {
+    const { data: d } = await api(`/${type}/${encodeURIComponent(slug)}`);
+    const box = document.getElementById("cineEp");
+    if (!box || location.hash !== startHash) return;
+    const eps = normalizeEpisodesData(d);
+    const cur = String(type === "series" ? id : episode);
+    const i = eps.findIndex((e) => String(e.episode_id) === cur);
+    if (i < 0) return;
+    const href = (ep) => type === "series"
+      ? `lecteur?id=${encodeURIComponent(ep.episode_id)}&type=series&slug=${encodeURIComponent(d.slug)}&title=${encodeURIComponent(d.title + " - S" + ep.season + "E" + ep.number)}`
+      : `lecteur?type=${type}&slug=${encodeURIComponent(d.slug)}&episode=${encodeURIComponent(ep.episode_id)}&title=${encodeURIComponent(d.title + " - " + (ep.title || ep.number))}`;
+    const prev = eps[i - 1], next = eps[i + 1];
+    box.innerHTML =
+      (prev ? `<a class="cine-tool" href="#/${escHtml(href(prev))}">${CINE_ICONS.prev}<span>Précédent</span></a>` : "") +
+      (next ? `<a class="cine-tool cine-tool-main" href="#/${escHtml(href(next))}">${CINE_ICONS.next}<span>Épisode suivant</span></a>` : "");
+  } catch (e) { /* la navigation d'épisodes est un bonus : on ignore l'erreur */ }
+}
+
 // Titres similaires sous le lecteur : on utilise "related" de la fiche si
 // l'API en fournit, sinon on complète avec le reste de la même catégorie.
 async function loadSimilar(type, slug) {
@@ -2336,29 +2616,82 @@ async function loadSimilar(type, slug) {
   if (box) bindHearts(box);
 }
 function renderServerTabs(servers) {
-  document.getElementById("tabs").innerHTML = servers.map((s, i) => `
-    <button type="button" class="server-btn" onclick="switchServer(${i}, window.__pmServers)">${s.server_name} <small>(${s.version})</small></button>`).join("");
   window.__pmServers = servers;
+  document.getElementById("tabs").innerHTML = servers.map((s, i) => `
+    <button type="button" class="server-btn" role="tab" aria-selected="false" onclick="switchServer(${i})"><span class="server-dot"></span>${escHtml(s.server_name || "Serveur " + (i + 1))}${s.version ? ` <small>${escHtml(s.version)}</small>` : ""}</button>`).join("");
+  const tools = document.getElementById("cineTools");
+  if (!tools) return;
+  tools.innerHTML = `
+    <button type="button" class="cine-tool" id="toolNextServer" title="Essayer un autre serveur">${CINE_ICONS.swap}<span>Autre serveur</span></button>
+    <button type="button" class="cine-tool" id="toolFull" title="Plein écran">${CINE_ICONS.full}<span>Plein écran</span></button>
+    <button type="button" class="cine-tool" id="toolCinema" aria-pressed="false" title="Éteindre le reste de la page">${CINE_ICONS.cinema}<span>Mode cinéma</span></button>
+    <a class="cine-tool" id="toolExt" target="_blank" rel="noopener noreferrer" title="Ouvrir dans un nouvel onglet">${CINE_ICONS.ext}<span>Nouvel onglet</span></a>`;
+  document.getElementById("toolNextServer").addEventListener("click", () => {
+    const list = window.__pmServers || [];
+    if (list.length > 1) switchServer(((window.__pmCur || 0) + 1) % list.length);
+  });
+  document.getElementById("toolFull").addEventListener("click", () => {
+    const el = document.getElementById("cineStage");
+    if (!el) return;
+    if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) req.call(el);
+  });
+  document.getElementById("toolCinema").addEventListener("click", (e) => {
+    const on = document.body.classList.toggle("cine-on");
+    e.currentTarget.setAttribute("aria-pressed", on ? "true" : "false");
+  });
 }
 function switchServer(i, servers) {
-  servers = servers || window.__pmServers;
-  document.querySelectorAll(".server-btn").forEach((b, idx) => b.classList.toggle("active", idx === i));
-  const originalLink = servers[i].server_link;
+  servers = servers || window.__pmServers || [];
+  const s = servers[i];
+  if (!s) return;
+  window.__pmCur = i;
+  clearTimeout(window.__pmSlow);
+  document.querySelectorAll(".server-btn").forEach((b, idx) => {
+    b.classList.toggle("active", idx === i);
+    b.setAttribute("aria-selected", idx === i ? "true" : "false");
+  });
+  try { localStorage.setItem("pm_last_server_name", s.server_name || ""); } catch (e) {}
+  const originalLink = String(s.server_link || "");
   let link = originalLink;
+  // Page en HTTPS : un lecteur en http:// serait bloqué (contenu mixte) → on tente la version HTTPS.
   if (location.protocol === "https:" && link.startsWith("http://")) link = "https://" + link.slice("http://".length);
-  // BUGFIX : certains hébergeurs de lecteurs affichent un mur "Checking
-  // your browser..." (anti-bot) qui ne se termine jamais quand la requête
-  // n'a pas de referrer, ou quand la sandbox de l'iframe l'empêche de se
-  // recharger / poser un cookie après la vérification — d'où allow-scripts,
-  // allow-same-origin, allow-forms et un referrer non vide ci-dessus.
-  // BUGFIX (pubs) : c'est justement allow-popups / allow-popups-to-escape-
-  // sandbox / allow-top-navigation-by-user-activation qui laissent passer
-  // les popunders et redirections publicitaires de ces hébergeurs gratuits.
-  // On les retire : la vérification anti-bot n'en a pas besoin (elle recharge
-  // l'iframe elle-même, pas la page du dessus), alors que les pubs, si.
-  document.getElementById("player").innerHTML = `<iframe src="${link}" allowfullscreen allow="autoplay; fullscreen; picture-in-picture; encrypted-media" referrerpolicy="origin" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>`;
-  document.getElementById("fallbackLink").innerHTML =
-    `Le lecteur ne s'affiche pas ? <a href="${originalLink}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:700">Ouvrir dans un nouvel onglet</a>`;
+  const box = document.getElementById("player");
+  const hint = document.getElementById("fallbackLink");
+  const ext = document.getElementById("toolExt");
+  if (ext) ext.href = /^https?:\/\//i.test(originalLink) ? originalLink : "#";
+  if (!box) return;
+  // Seuls http(s) sont acceptés : un lien "javascript:" venant de l'API ne sera jamais chargé.
+  if (!/^https?:\/\//i.test(link)) {
+    box.innerHTML = `<div class="cine-loading"><p>Ce serveur renvoie un lien invalide. Essaie-en un autre.</p></div>`;
+    return;
+  }
+  // Sandbox SANS allow-popups : c'est ce qui bloque les pubs/redirections des hébergeurs gratuits.
+  // allow-same-origin + allow-scripts restent nécessaires pour le contrôle anti-bot de certains lecteurs.
+  box.innerHTML = `<div class="cine-loading"><span class="cine-spin"></span><p>Connexion à ${escHtml(s.server_name || "ce serveur")}…</p></div>`;
+  const overlay = box.firstElementChild;
+  const frame = document.createElement("iframe");
+  frame.className = "cine-frame";
+  frame.title = "Lecteur vidéo";
+  frame.setAttribute("allowfullscreen", "");
+  frame.setAttribute("allow", "autoplay; fullscreen; picture-in-picture; encrypted-media");
+  frame.setAttribute("referrerpolicy", "origin");
+  frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-presentation");
+  const base = "Si l'image reste noire, change de serveur avec les boutons ci-dessus.";
+  frame.addEventListener("load", () => {
+    clearTimeout(window.__pmSlow);
+    if (overlay) { overlay.classList.add("done"); setTimeout(() => overlay.remove(), 450); }
+    if (hint) hint.textContent = base;
+  });
+  frame.src = link;
+  box.appendChild(frame);
+  if (hint) hint.textContent = "Le lecteur démarre…";
+  window.__pmSlow = setTimeout(() => {
+    if (!hint) return;
+    const more = servers.length > 1 ? `<a onclick="switchServer(${(i + 1) % servers.length})">Essayer le serveur suivant</a> ou ` : "";
+    hint.innerHTML = `Ce serveur met du temps à répondre. ${more}<a href="${escHtml(originalLink)}" target="_blank" rel="noopener noreferrer">ouvrir dans un nouvel onglet</a>.`;
+  }, 9000);
 }
 
 /* ----- Ma Liste ----- */
@@ -2377,12 +2710,12 @@ function renderMaliste() {
   }
   trackItems(list);
   app.innerHTML = `<div class="grid">` + list.map(item => `
-    <div class="card" title="${item.title}">
-      <button type="button" class="mylist-heart active" data-slug="${item.slug}" aria-label="Retirer de Ma liste">♥</button>
+    <div class="card" title="${escHtml(item.title)}">
+      <button type="button" class="mylist-heart active" data-slug="${escHtml(item.slug)}" aria-label="Retirer de Ma liste">♥</button>
       <a onclick="nav('${detailRoute(item)}?slug=${encodeURIComponent(item.slug)}')">
-        <img src="${fastImg(item.image)}" alt="${item.title}" loading="lazy"
+        <img src="${escHtml(fastImg(item.image))}" alt="${escHtml(item.title)}" loading="lazy"
              data-orig="${encodeURIComponent(item.image)}" data-retried="0" onerror="imgFallback(this)">
-        <span class="badge ${cardBadgeClass(item.version)} row-card-badge">${item.version || ""}</span>
+        <span class="badge ${cardBadgeClass(item.version)} row-card-badge">${escHtml(item.version || "")}</span>
       </a>
     </div>`).join("") + `</div>`;
   app.querySelectorAll(".mylist-heart").forEach(btn => {
@@ -2462,14 +2795,14 @@ function viewParametres() {
     const c = document.getElementById("profileConfirm");
     c.style.display = "block"; setTimeout(() => c.style.display = "none", 2500);
   });
-  document.getElementById("passwordForm").addEventListener("submit", (e) => {
+  document.getElementById("passwordForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const p1 = document.getElementById("newpass").value, p2 = document.getElementById("newpass2").value;
     const okLen = p1.length >= 8, okMatch = p1 === p2 && p2.length > 0;
     document.getElementById("f-newpass").classList.toggle("invalid", !okLen);
     document.getElementById("f-newpass2").classList.toggle("invalid", !okMatch);
     if (!okLen || !okMatch) return;
-    updateUser({ password: p1 });
+    { const r = await hashPwd(p1); updateUser({ salt: r.salt, hash: r.hash, password: undefined }); }
     document.getElementById("passwordForm").reset();
     const c = document.getElementById("passwordConfirm");
     c.style.display = "block"; setTimeout(() => c.style.display = "none", 2500);
@@ -2515,7 +2848,7 @@ async function viewDiagnostic() {
     }
     show();
   };
-  lines.push(`Site : ${location.protocol}//${location.host}  |  version : 2026-11-01-F`);
+  lines.push(`Site : ${location.protocol}//${location.host}  |  version : 2026-11-01-G`);
   show();
   await probe("Proxy interne sans paramètre (attendu : 400)", "/api/proxy");
   for (const [i, base] of API_BASES.entries()) {
@@ -2715,7 +3048,7 @@ async function viewComic() {
       <p style="font-size:12px;color:var(--text-muted);margin-top:18px">Source : MangaDex${c.credits && c.credits.source_url ? ` — <a href="${escHtml(c.credits.source_url)}" target="_blank" rel="noopener" style="color:var(--accent)">voir la page</a>` : ""}</p>
     </main>`;
   } catch (e) {
-    showError(escHtml(e.message), "manga");
+    showError(e.message, "manga");
   }
 }
 
@@ -2755,7 +3088,7 @@ async function viewLireComic() {
     </main>`;
     window.scrollTo({ top: 0 });
   } catch (e) {
-    showError(escHtml(e.message), "manga");
+    showError(e.message, "manga");
   }
 }
 
@@ -2894,22 +3227,38 @@ async function playSportStream(ci, si, el) {
   if (u.startsWith("/")) u = API_BASES[0].replace(/\/api\/v1\/?$/, "") + u;
   const src = (location.protocol === "https:" && u.startsWith("http:")) ? MY_PROXY_URL + encodeURIComponent(u) : u;
   if (window._hls) { try { window._hls.destroy(); } catch (e) {} window._hls = null; }
-  box.innerHTML = `<video id="spVideo" controls playsinline autoplay style="width:100%;max-height:60vh;background:#000;border-radius:12px"></video><p id="spMsg" style="font-size:13px;color:var(--text-muted);text-align:center;margin-top:6px">Chargement du flux…</p>`;
+  box.innerHTML = `<div class="vid-shell"><video id="spVideo" controls playsinline autoplay></video>
+    <div class="vid-overlay" id="spOverlay"><span class="cine-spin"></span><p>Chargement du flux…</p></div></div>`;
   const v = document.getElementById("spVideo");
-  const msg = document.getElementById("spMsg");
-  const fail = () => { if (msg) msg.textContent = "Ce flux est hors ligne ou indisponible. Essaie un autre flux ou une autre chaîne."; };
-  v.addEventListener("playing", () => { if (msg) msg.textContent = ""; });
+  const ov = document.getElementById("spOverlay");
+  const fail = (text) => {
+    if (!ov) return;
+    ov.classList.remove("hidden");
+    ov.innerHTML = `<p>${escHtml(text || "Ce flux est hors ligne ou indisponible. Réessaie, ou choisis un autre flux ou une autre chaîne.")}</p><button type="button" class="chip active" id="spRetry">Réessayer</button>`;
+    document.getElementById("spRetry").onclick = () => playSportStream(ci, si, null);
+  };
+  v.addEventListener("playing", () => { if (ov) ov.classList.add("hidden"); });
   try {
-    if (v.canPlayType("application/vnd.apple.mpegurl")) { v.src = src; v.addEventListener("error", fail); }
-    else {
+    if (v.canPlayType("application/vnd.apple.mpegurl")) {
+      v.src = src;
+      v.addEventListener("error", () => fail());
+    } else {
       await loadHls();
-      if (!window.Hls.isSupported()) throw new Error("x");
-      const h = new window.Hls();
+      if (!window.Hls.isSupported()) throw new Error("hls");
+      const h = new window.Hls({ backBufferLength: 30 });
       window._hls = h;
-      h.on(window.Hls.Events.ERROR, (ev, d) => { if (d && d.fatal) fail(); });
+      let recoveries = 0;
+      h.on(window.Hls.Events.ERROR, (ev, d) => {
+        if (!d || !d.fatal) return;
+        // Une coupure réseau ou un petit souci vidéo se rattrape souvent : on retente 2-3 fois avant d'abandonner.
+        if (d.type === window.Hls.ErrorTypes.NETWORK_ERROR && recoveries++ < 2) h.startLoad();
+        else if (d.type === window.Hls.ErrorTypes.MEDIA_ERROR && recoveries++ < 3) h.recoverMediaError();
+        else fail();
+      });
       h.loadSource(src);
       h.attachMedia(v);
     }
+    const p = v.play(); if (p && p.catch) p.catch(() => {});
   } catch (e) { fail(); }
 }
 
@@ -2941,7 +3290,7 @@ function renderApp() {
   // selon l'état de connexion.
 
   stopStage();
-  document.body.classList.remove("auth-body");
+  document.body.classList.remove("auth-body", "cine-on");
   if (path !== "accueil") { const an = document.getElementById("announce"); if (an) an.innerHTML = ""; }
   renderChrome();
   if (getCurrentUser() && isLoggedIn() && path !== "diagnostic") setTimeout(buildSearchIndex, 2500);
