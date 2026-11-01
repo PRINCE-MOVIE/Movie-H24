@@ -40,6 +40,19 @@ function isPrivateHost(h) {
     h === "::1" || h.startsWith("[");
 }
 
+// Réécrit une playlist HLS (.m3u8) pour que chaque segment repasse par ce proxy
+// (sinon le navigateur bloque le contenu http:// sur une page https://).
+function rewriteHls(text, baseUrl) {
+  const wrap = (u) => {
+    try { return "/api/proxy?url=" + encodeURIComponent(new URL(u, baseUrl).href); } catch (e) { return u; }
+  };
+  return text.split(/\r?\n/).map((line) => {
+    if (!line.trim()) return line;
+    if (line.startsWith("#")) return line.replace(/URI="([^"]+)"/g, (m, u) => 'URI="' + wrap(u) + '"');
+    return wrap(line.trim());
+  }).join("\n");
+}
+
 async function get(url) {
   return fetch(url, {
     headers: { Accept: "*/*", "User-Agent": "Mozilla/5.0 (compatible; PrinceMovieProxy/2.0)" },
@@ -75,6 +88,7 @@ export default async function handler(req, res) {
   if (!isApi && isPrivateHost(target.hostname)) return fail(res, 403, "URL cible non autorisée.");
 
   let upstream = null;
+  let usedUrl = target.href;
   try {
     if (isApi) {
       // Même chemin, essayé sur chaque serveur jusqu'à obtenir une réponse.
@@ -85,6 +99,7 @@ export default async function handler(req, res) {
           const r = await get(base + pathAndQuery);
           if (r.status >= 500) { down.set(base, Date.now() + COOLDOWN_MS); lastErr = new Error(base + " → " + r.status); continue; }
           upstream = r;
+          usedUrl = base + pathAndQuery;
           res.setHeader("X-Upstream", base);
           break;
         } catch (e) { down.set(base, Date.now() + COOLDOWN_MS); lastErr = e; }
@@ -104,6 +119,15 @@ export default async function handler(req, res) {
   res.status(upstream.status);
   res.setHeader("Content-Type", contentType);
 
+  // Flux vidéo en direct (HLS) : jamais en cache, segments réacheminés par le proxy.
+  if (/mpegurl/i.test(contentType) || /\.m3u8$/i.test(target.pathname)) {
+    const playlist = await upstream.text();
+    res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+    res.setHeader("Cache-Control", "no-store");
+    return res.send(rewriteHls(playlist, usedUrl));
+  }
+  const isSports = /\/api\/v1\/sports\//.test(target.pathname);
+
   if (/^(application\/json|text\/|application\/javascript)/i.test(contentType)) {
     const text = await upstream.text();
     // Cache navigateur/CDN seulement pour les réponses utiles : jamais une
@@ -111,7 +135,7 @@ export default async function handler(req, res) {
     const cacheable = upstream.status === 200 &&
       !/"success"\s*:\s*false/.test(text) && !/"data"\s*:\s*\[\s*\]/.test(text);
     res.setHeader("Cache-Control", cacheable
-      ? "public, s-maxage=300, stale-while-revalidate=86400, stale-if-error=86400"
+      ? (isSports ? "public, s-maxage=10, stale-while-revalidate=20" : "public, s-maxage=300, stale-while-revalidate=86400, stale-if-error=86400")
       : "no-store");
     return res.send(text);
   }
