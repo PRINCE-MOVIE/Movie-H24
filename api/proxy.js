@@ -7,14 +7,14 @@
  * Ajouter des serveurs de secours (même format que le premier) :
  *   - soit dans la liste DEFAULT_SERVERS ci-dessous,
  *   - soit dans Vercel > Settings > Environment Variables :
- *       API_SERVERS = http://51.75.118.170:20041,http://AUTRE-IP:PORT
+ *       API_SERVERS = http://51.75.118.169:20245,http://AUTRE-IP:PORT
  *
  * IMPORTANT : ce fichier utilise la syntaxe "export default". Il faut donc
  * le package.json fourni à côté ({"type":"module"}), sinon Vercel plante.
  */
 
 const DEFAULT_SERVERS = [
-  "http://51.75.118.170:20041",
+  "http://51.75.118.169:20245",
   // "http://SERVEUR-2:PORT",
 ];
 
