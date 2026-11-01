@@ -757,7 +757,7 @@ body.welcome-body { background: #07070a; overflow-x: hidden; }
 .mg-reader{max-width:820px;margin:0 auto}
 .mg-reader img{display:block;width:100%;height:auto;background:#111;min-height:200px}
 .mg-chapters{display:flex;flex-wrap:wrap;gap:8px;max-height:60vh;overflow:auto}
-@media (max-width:760px){ .bottom-nav a{font-size:9px;gap:2px} .bottom-nav a svg{width:20px;height:20px} }
+@media (max-width:760px){ .bottom-nav a{font-size:10px;gap:2px;letter-spacing:0} .bottom-nav a svg{width:20px;height:20px} }
 </style>
 </head>
 <body>
@@ -1352,7 +1352,7 @@ function viewIndex() {
       <p class="welcome-note">Déjà inscrit ? <a onclick="nav('connexion')">Connecte-toi ici</a></p>
       `}
       <ul class="cat-chips" aria-label="Catégories">
-        <li>Films</li><li>Séries</li><li>Animés</li><li>K-Dramas</li><li>VF</li><li>VOSTFR</li>
+        <li>Films</li><li>Séries</li><li>Animés</li><li>K-dramas</li><li>VF</li><li>VOSTFR</li>
       </ul>
     </main>
     <section class="welcome-features">
@@ -1526,7 +1526,7 @@ const HOME_SECTIONS = [
   { key: "movies", title: "Films", tab: "movies" },
   { key: "series", title: "Séries", tab: "series" },
   { key: "anime", title: "Animés", tab: "anime" },
-  { key: "dramas", title: "K-Dramas", tab: "dramas" },
+  { key: "dramas", title: "K-dramas", tab: "dramas" },
 ];
 
 /* ---------------------------------------------------------
@@ -1764,7 +1764,7 @@ async function viewAccueil() {
   }
   if (myList.length) {
     trackItems(myList);
-    rowsEl.appendChild(rowBlock({ title: "Ma Liste", inner: myList.map(i => cardHtml(i, "row")).join("") }));
+    rowsEl.appendChild(rowBlock({ title: "Ma liste", inner: myList.map(i => cardHtml(i, "row")).join("") }));
   }
   HOME_SECTIONS.forEach(s => {
     let data = loaded[s.key];
@@ -1775,7 +1775,7 @@ async function viewAccueil() {
   bindHearts(rowsEl);
 }
 
-const CATALOGUE_TITLES = { movies: "Films", series: "Séries", anime: "Animés", dramas: "K-Dramas" };
+const CATALOGUE_TITLES = { movies: "Films", series: "Séries", anime: "Animés", dramas: "K-dramas" };
 let catState = { tab: "movies", page: 1, hasContent: false, seq: 0 };
 
 function viewCatalogue() {
@@ -1886,14 +1886,29 @@ async function loadSearch(q) {
   titleEl.textContent = `Résultats pour « ${q} »`;
   app.innerHTML = `<div class="loader">Recherche en cours…</div>`;
   try {
-    const { data: raw, meta } = await api("/search", { q });
-    if (!raw.length) { app.innerHTML = `<p style="color:var(--text-muted)">Aucun résultat pour « ${escHtml(q)} ».</p>`; return; }
-    // Tri par pertinence : titre exact, puis qui commence par la recherche, puis qui la contient.
+    // L'API renvoie parfois des titres sans aucun rapport (derniers ajouts du
+    // catalogue) : on ne garde que les titres qui correspondent vraiment, et on
+    // réessaie avec des variantes ("teen-wolf", premier mot) si rien ne colle.
     const norm = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
     const nq = norm(q), words = nq.split(" ").filter(Boolean);
     const score = (t) => { t = norm(t); return t === nq ? 0 : t.startsWith(nq) ? 1 : t.includes(nq) ? 2 : words.every(w => t.includes(w)) ? 3 : 4; };
-    let data = raw.map((it, i) => ({ it, i, sc: score(it.title) })).sort((a, b) => a.sc - b.sc || a.i - b.i);
-    if (data.some(x => x.sc < 4)) data = data.filter(x => x.sc < 4);
+    const variants = [q, q.trim().replace(/\s+/g, "-"), words.length > 1 ? words[0] : null]
+      .filter((v, k, a) => v && v.length >= 2 && a.indexOf(v) === k);
+    let found = [];
+    for (const v of variants) {
+      let r;
+      try { r = await api("/search", { q: v }); }
+      catch (err) { if (v === variants[0]) throw err; continue; }
+      const rel = (r.data || []).filter(it => score(it.title) < 4);
+      found = found.concat(rel.filter(it => !found.some(f => f.slug === it.slug)));
+      if (found.length) break;
+    }
+    if (!found.length) {
+      titleEl.textContent = `Résultats pour « ${q} » (0)`;
+      app.innerHTML = `<p style="color:var(--text-muted);line-height:1.6">Aucun résultat pour « ${escHtml(q)} ».<br>Essaie une autre orthographe ou un seul mot, ou parcours le catalogue.</p>`;
+      return;
+    }
+    let data = found.map((it, k) => ({ it, k, sc: score(it.title) })).sort((a, b) => a.sc - b.sc || a.k - b.k);
     data = data.map(x => x.it);
     titleEl.textContent = `Résultats pour « ${q} » (${data.length})`;
     trackItems(data);
@@ -2126,7 +2141,7 @@ async function viewDrama() {
   detailChrome();
   document.getElementById("app").innerHTML = `<main><div class="loader">Chargement</div></main>`;
   const slug = getSlug();
-  if (!slug) { showError("Aucun K-Drama sélectionné."); return; }
+  if (!slug) { showError("Aucun K-drama sélectionné."); return; }
   try {
     const { data: d } = await api(`/dramas/${slug}`);
     document.title = `${d.title} — PRINCE MOVIE`;
@@ -2278,7 +2293,7 @@ function switchServer(i, servers) {
 function viewMaliste() {
   detailChrome();
   const app = document.getElementById("app");
-  app.innerHTML = `<main><h1 class="section-title">Ma Liste</h1><div id="mlApp"></div></main>`;
+  app.innerHTML = `<main><h1 class="section-title">Ma liste</h1><div id="mlApp"></div></main>`;
   renderMaliste();
 }
 function renderMaliste() {
@@ -2291,7 +2306,7 @@ function renderMaliste() {
   trackItems(list);
   app.innerHTML = `<div class="grid">` + list.map(item => `
     <div class="card" title="${item.title}">
-      <button type="button" class="mylist-heart active" data-slug="${item.slug}" aria-label="Retirer de Ma Liste">♥</button>
+      <button type="button" class="mylist-heart active" data-slug="${item.slug}" aria-label="Retirer de Ma liste">♥</button>
       <a onclick="nav('${detailRoute(item)}?slug=${encodeURIComponent(item.slug)}')">
         <img src="${fastImg(item.image)}" alt="${item.title}" loading="lazy"
              data-orig="${encodeURIComponent(item.image)}" data-retried="0" onerror="imgFallback(this)">
