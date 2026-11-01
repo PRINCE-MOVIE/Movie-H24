@@ -2434,33 +2434,52 @@ async function viewDiagnostic() {
   for (const [i, base] of API_BASES.entries()) {
     await probe(`Serveur ${i + 1} : /movies`, MY_PROXY_URL + encodeURIComponent(base + "/movies?page=1"));
   }
-  await probe("Proxy public (allorigins) : /movies", PROXIES[1] + encodeURIComponent(API_BASES[0] + "/movies?page=1"));
   const pj = async (label, path) => {
     const t0 = Date.now();
     try {
-      const r = await fetch(MY_PROXY_URL + encodeURIComponent(API_BASES[0] + path));
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 30000);
+      const r = await fetch(MY_PROXY_URL + encodeURIComponent(API_BASES[0] + path), { signal: ctl.signal });
+      clearTimeout(tm);
       const j = await r.json();
       lines.push(`${j.success ? "OK " : "ERR"} ${label} (${Date.now() - t0} ms)${j.success ? "" : " → " + (j.error && j.error.message || r.status)}`);
       show();
       return j.success ? j : null;
-    } catch (e) { lines.push(`ERR ${label} → ${e.message}`); show(); return null; }
+    } catch (e) { lines.push(`ERR ${label} → ${e.name === "AbortError" ? "délai dépassé (30 s)" : e.message}`); show(); return null; }
   };
+  const enc = encodeURIComponent;
+  // Films : on teste plusieurs titres de la liste (pas seulement le premier)
   const lm = await pj("Liste films", "/movies?page=1");
-  const mv = lm && lm.data.find(x => x.type === "movie") || (lm && lm.data[0]);
-  if (mv) {
-    const d = await pj("Fiche film " + mv.slug, "/movies/" + encodeURIComponent(mv.slug));
-    if (d && d.data.first_episode_id) await pj("Lecture film (serveurs)", "/episodes/" + encodeURIComponent(d.data.first_episode_id) + "/servers");
+  if (lm) {
+    let okServers = false;
+    for (const it of lm.data.slice(0, 6)) {
+      const base = it.type === "series" ? "/series/" : "/movies/";
+      const d = await pj(`Fiche [${it.type}] ${it.slug}`, base + enc(it.slug));
+      if (d && !okServers) {
+        const id = d.data.first_episode_id || (d.data.episodes && d.data.episodes[0] && d.data.episodes[0].episode_id);
+        if (id) { okServers = !!(await pj("  → liens de lecture", "/episodes/" + enc(id) + "/servers")); }
+      }
+    }
   }
   const ls = await pj("Liste séries", "/series?page=1");
-  const se = ls && ls.data[0];
-  if (se) {
-    const d = await pj("Fiche série " + se.slug, "/series/" + encodeURIComponent(se.slug));
+  if (ls) {
+    for (const it of ls.data.slice(0, 3)) {
+      const d = await pj(`Fiche [${it.type}] ${it.slug}`, "/series/" + enc(it.slug));
+      const ep = d && d.data.episodes && d.data.episodes[0];
+      if (ep) { await pj("  → liens de lecture", "/episodes/" + enc(ep.episode_id) + "/servers"); break; }
+    }
+  }
+  // Animé (marche chez toi) : sert de comparaison
+  const la = await pj("Liste animés", "/anime?page=1");
+  const an = la && la.data[0];
+  if (an) {
+    const d = await pj("Fiche animé " + an.slug, "/anime/" + enc(an.slug));
     const ep = d && d.data.episodes && d.data.episodes[0];
-    if (ep) await pj("Lecture série (serveurs)", "/episodes/" + encodeURIComponent(ep.episode_id) + "/servers");
+    if (ep) await pj("  → liens de lecture", "/anime/" + enc(an.slug) + "/servers?episode=" + enc(ep.episode_id));
   }
   await pj("Recherche « naruto »", "/search?q=naruto");
   await pj("Manga (liste)", "/comics?type=manga&lang=fr&per_page=5");
   await pj("Sport en direct", "/sports/live");
+  await pj("Chaînes sport gratuites", "/sports/channels/featured?limit=5");
   lines.push("Fin du test.");
   show();
 }
