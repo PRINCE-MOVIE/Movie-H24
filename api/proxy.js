@@ -22,7 +22,7 @@ const clean = (s) => s.trim().replace(/\/+$/, "");
 const SERVERS = (process.env.API_SERVERS ? process.env.API_SERVERS.split(",") : DEFAULT_SERVERS)
   .map(clean).filter(Boolean);
 
-const TIMEOUT_MS = 9000;     // attente max par serveur avant de passer au suivant
+const TIMEOUT_MS = 25000;     // attente max par serveur (les fiches/liens de lecture peuvent être lents au 1er appel)
 const COOLDOWN_MS = 30000;   // un serveur en panne est mis de côté 30 s
 const down = new Map();
 
