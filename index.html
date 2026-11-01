@@ -912,7 +912,10 @@ async function apiRaw(path, params = {}, baseIdx = 0) {
   // Appel direct (utile hors HTTPS) en même temps que les proxys.
   const directController = new AbortController();
   const directTimer = setTimeout(() => directController.abort(), 9000);
-  const directAttempt = fetch(urlStr, { signal: directController.signal })
+  // Sur une page https, un appel direct vers une API en http:// est toujours
+  // bloqué par le navigateur : inutile, et ça cachait le vrai message d'erreur.
+  const canDirect = !(location.protocol === "https:" && urlStr.startsWith("http:"));
+  const directAttempt = !canDirect ? null : fetch(urlStr, { signal: directController.signal })
     .then(async (res) => {
       let json;
       try { json = await res.json(); }
@@ -937,7 +940,7 @@ async function apiRaw(path, params = {}, baseIdx = 0) {
     if (delay) await new Promise(r => setTimeout(r, delay));
     if (controllers[orderIdx].signal.aborted) throw new Error("annulé");
     const release = await proxySemaphore.acquire();
-    const timer = setTimeout(() => controllers[orderIdx].abort(), 12000);
+    const timer = setTimeout(() => controllers[orderIdx].abort(), 28000);
     try {
       if (controllers[orderIdx].signal.aborted) throw new Error("annulé");
       const res = await fetch(proxy + encodeURIComponent(urlStr), { signal: controllers[orderIdx].signal });
@@ -956,7 +959,7 @@ async function apiRaw(path, params = {}, baseIdx = 0) {
       release();
     }
   })());
-  attempts.push(directAttempt);
+  if (directAttempt) attempts.push(directAttempt);
 
   try {
     const json = await Promise.any(attempts);
@@ -973,7 +976,9 @@ async function apiRaw(path, params = {}, baseIdx = 0) {
     if (lastGood) return lastGood;
     const errors = (aggregateErr && aggregateErr.errors) || [aggregateErr];
     const real = errors.filter(e => e && e.message !== "annulé");
-    const lastErr = (real.length ? real : errors)[(real.length ? real : errors).length - 1];
+    const pool = real.length ? real : errors;
+    const meaningful = pool.filter(e => e && !/failed to fetch|réponse invalide|aborted|networkerror/i.test(e.message || ""));
+    const lastErr = (meaningful.length ? meaningful : pool)[(meaningful.length ? meaningful : pool).length - 1];
     const err = new Error(lastErr?.message || "Source indisponible. Réessaie dans un instant.");
     err.code = lastErr?.code || "source_unavailable";
     throw err;
