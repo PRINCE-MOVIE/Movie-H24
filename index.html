@@ -1000,6 +1000,7 @@ async function apiRaw(path, params = {}, baseIdx = 0) {
     const lastErr = (meaningful.length ? meaningful : pool)[(meaningful.length ? meaningful : pool).length - 1];
     const err = new Error(lastErr?.message || "Source indisponible. Réessaie dans un instant.");
     err.code = lastErr?.code || "source_unavailable";
+    if (err.code === "not_found") err.message = "Ce titre n'est pas disponible pour le moment sur la source.";
     throw err;
   }
 }
@@ -1903,9 +1904,12 @@ async function loadSearch(q) {
       found = found.concat(rel.filter(it => !found.some(f => f.slug === it.slug)));
       if (found.length) break;
     }
+    // Index local : complète (ou remplace) les résultats de l'API.
+    const local = (readIndex() || { items: [] }).items.filter(it => score(it.title) < 4);
+    local.forEach(it => { if (!found.some(f => f.slug === it.slug && String(f.type) === String(it.type))) found.push(it); });
     if (!found.length) {
       titleEl.textContent = `Résultats pour « ${q} » (0)`;
-      app.innerHTML = `<p style="color:var(--text-muted);line-height:1.6">Aucun résultat pour « ${escHtml(q)} ».<br>Essaie une autre orthographe ou un seul mot, ou parcours le catalogue.</p>`;
+      app.innerHTML = `<p style="color:var(--text-muted);line-height:1.6">Aucun résultat pour « ${escHtml(q)} ».<br>Essaie une autre orthographe ou un seul mot, ou parcours le catalogue.${idxBuilding ? `<br><small>Le catalogue est en cours d'indexation pour améliorer la recherche : réessaie dans une minute.</small>` : ""}</p>`;
       return;
     }
     let data = found.map((it, k) => ({ it, k, sc: score(it.title) })).sort((a, b) => a.sc - b.sc || a.k - b.k);
@@ -2499,6 +2503,51 @@ async function viewDiagnostic() {
   show();
 }
 
+
+/* =========================================================
+   INDEX DE RECHERCHE LOCAL (secours quand la recherche de l'API est cassée)
+   On parcourt en arrière-plan les listes films/séries/animés/dramas (qui
+   fonctionnent) et on garde titres + images sur l'appareil pendant 24 h.
+   ========================================================= */
+const IDX_KEY = "pm_index_v1";
+const IDX_TTL_MS = 24 * 3600 * 1000;
+const IDX_MAX_PAGES = 40;
+let idxBuilding = null;
+function readIndex() {
+  try { const r = JSON.parse(localStorage.getItem(IDX_KEY)); return r && Array.isArray(r.items) ? r : null; }
+  catch (e) { return null; }
+}
+function buildSearchIndex() {
+  if (idxBuilding) return idxBuilding;
+  const cur = readIndex();
+  if (cur && cur.done && Date.now() - cur.t < IDX_TTL_MS) return Promise.resolve();
+  idxBuilding = (async () => {
+    const map = new Map();
+    const save = (done) => {
+      try { localStorage.setItem(IDX_KEY, JSON.stringify({ t: Date.now(), done, items: [...map.values()] })); } catch (e) {}
+    };
+    let sinceSave = 0;
+    await Promise.all(["movies", "series", "anime", "dramas"].map(async (cat) => {
+      let last = IDX_MAX_PAGES;
+      for (let page = 1; page <= Math.min(last, IDX_MAX_PAGES); page++) {
+        try {
+          const r = await fetch(MY_PROXY_URL + encodeURIComponent(API_BASES[0] + "/" + cat + "?page=" + page));
+          const j = await r.json();
+          if (!j.success) break;
+          (j.data || []).forEach(it => {
+            if (it && it.slug && it.title) map.set((it.type || cat) + "|" + it.slug,
+              { title: it.title, slug: it.slug, image: it.image, version: it.version, type: it.type || cat.replace(/s$/, ""), latest_episode: it.latest_episode || null });
+          });
+          if (j.meta && j.meta.last_page) last = Math.min(Number(j.meta.last_page) || last, IDX_MAX_PAGES);
+          if (++sinceSave >= 6) { sinceSave = 0; save(false); }
+        } catch (e) { break; }
+      }
+    }));
+    save(true);
+  })().finally(() => { idxBuilding = null; });
+  return idxBuilding;
+}
+
 /* =========================================================
    MANGA / MANHWA (MangaDex via l'API) + SPORT EN DIRECT
    ========================================================= */
@@ -2823,6 +2872,7 @@ function renderApp() {
   document.body.classList.remove("auth-body");
   if (path !== "accueil") { const an = document.getElementById("announce"); if (an) an.innerHTML = ""; }
   renderChrome();
+  if (getCurrentUser() && isLoggedIn() && path !== "diagnostic") setTimeout(buildSearchIndex, 2500);
   const view = ROUTES[path] || viewCatalogue;
   // Filet de sécurité : si une vue lève une erreur inattendue de façon
   // synchrone (donnée manquante, etc.), on affiche un message clair au
