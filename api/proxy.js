@@ -97,7 +97,10 @@ export default async function handler(req, res) {
       for (const base of orderedServers()) {
         try {
           const r = await get(base + pathAndQuery);
-          if (r.status >= 500) { down.set(base, Date.now() + COOLDOWN_MS); lastErr = new Error(base + " → " + r.status); continue; }
+          const isLast = base === orderedServers().slice(-1)[0];
+          // S'il reste un autre serveur on bascule dessus ; sinon on renvoie la vraie
+          // réponse d'erreur de l'API (utile pour afficher le bon message).
+          if (r.status >= 500 && !isLast) { down.set(base, Date.now() + COOLDOWN_MS); lastErr = new Error(base + " → " + r.status); continue; }
           upstream = r;
           usedUrl = base + pathAndQuery;
           res.setHeader("X-Upstream", base);
